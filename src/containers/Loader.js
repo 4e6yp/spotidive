@@ -6,6 +6,7 @@ import PropTypes, { array } from 'prop-types';
 import axios from '../axios-spotifyClient';
 import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
 import { CircularProgress } from '@material-ui/core';
+import _ from 'lodash';
 
 axiosRetry(axios, {
   // FIXME bruteforce is not an option! 
@@ -27,21 +28,18 @@ export const loadingStates = {
 const Loader = (props) => {
   const { setPlaylists, configData } = props;
 
-  // Remove unnecessary fields (such as tracks to add);
   const [spotifyData, setSpotifyData] = useState({
     library: {
       tracks: [],
       artists: {},
       finishedFetch: false
     },
-    playlist: {
-      id: '',
-      tracks: [],
-      artists: {} // key = artistID
-    },
-    tracksToAdd: [],
     userId: null
   });
+
+  const [addedArtists, setAddedArtists] = useState([]);
+
+  const [error, setError] = useState(null);
 
   const [progress, setProgress] = useState(0);
 
@@ -53,55 +51,51 @@ const Loader = (props) => {
 
   /*
     Marker is contextual and depends on current process:
-    FETCH_PLAYLIST_TRACKS - offset for previous packet
-    FETCH_ARTIST_TOP_TRACKS - artistId
-    FETCH_RELATED_ARTISTS - artistId
-    ADD_TRACKS_TO_PLAYLIST - trackId
+    FETCH_PLAYLIST_TRACKS    - offset for previous packet
+    FETCH_ARTIST_TOP_TRACKS    - artistId
+    FETCH_RELATED_ARTISTS    - artistId
+    ADD_TRACKS_TO_PLAYLIST    - trackId
   */
   // const [continueProcessMarker, setContinueProcessMarker] = useState();
+
+  const allSettledRequests = async (requestsArr) => {
+    let allRequestsData = await Promise.allSettled(requestsArr);    
+    allRequestsData = allRequestsData.reduce((acc, cur) => cur.status === 'fulfilled' ? acc.concat([...cur.value]) : acc, []);
+
+    return allRequestsData;
+  }
 
   /**
    * perRequestFunction gets request response as input and should return object.
    * 
    * finishedFunciton gets array of processed objects (from each request) after all requests are finished. Should return object.
    */
-  const synchFetchMultiplePages = (url, perRequestFunction, finishedFunction) => {
-    const limit = 50;
+  const synchFetchMultiplePages = useCallback(async (url, limit, perRequestFunction) => {
+    const firstPage = await axios.get(`${url}?market=from_token&limit=${limit}`);    
+    const firstPageData = perRequestFunction(firstPage.data.items);
 
-    axios.get(`${url}?market=from_token&limit=${limit}`)
-      .then(res => {
-        const initialRequestData = perRequestFunction(res.data.items);
+    if (!firstPage.data.next) {
+      return firstPageData;
+    }
 
-        if (!res.data.next) {
-          return finishedFunction(initialRequestData);
-        }
+    const totalPagesNum = Math.ceil(firstPage.data.total / limit);
 
-        const totalPages = Math.ceil(res.data.total / limit);
-        const fetchData = (currentOffset) => {
-          return new Promise((resolve, reject) => {
-            axios.get(`${url}?market=from_token&limit=${limit}&offset=${currentOffset}`)
-              .then(res => {
-                resolve(perRequestFunction(res.data.items));
-              })
-          })
-        }
+    const fetchPageData = async (currentOffset) => {
+      const requestData = await axios.get(`${url}?market=from_token&limit=${limit}&offset=${currentOffset}`);
+      return perRequestFunction(requestData.data.items);
+    }
 
-        let dataRequests = [];
+    let dataRequests = [];
 
-        for (let i=limit; i <= totalPages * limit; i += limit) {
-          dataRequests.push(fetchData(i));
-        }
+    for (let i=limit; i <= totalPagesNum * limit; i += limit) {
+      dataRequests.push(fetchPageData(i));
+    }
+    
+    const allPagesData = await allSettledRequests(dataRequests, firstPageData);
+    return firstPageData.concat(allPagesData);
+  }, [])
 
-        Promise.allSettled(dataRequests)
-          .then(data => {
-            // Manually insert initial data, since it won't be proceeded inside our loop
-            data.unshift({ status: 'fulfilled', value: initialRequestData });
-            finishedFunction(data);
-          })
-      })
-  }
-
-  const addTracksToPlaylist = useCallback((tracks) => {
+  const addTracksToPlaylist = useCallback(async (tracks) => {
     const addLimit = 100;
     const playlistTracksLimit = 10000;
 
@@ -122,36 +116,23 @@ const Loader = (props) => {
     // since spotify API is limited to 10000 tracks per 1 playlist
     let playlistPacks = splitArrayIntoPacks(tracksPacks, playlistTracksLimit / addLimit);
 
-    const createPlaylistRequest = (playlistPack, name) => {
-      return new Promise((resolvePlaylistCreate, rejectPlaylistCreate) => {
-        axios.post(`/users/${spotifyData.userId}/playlists`, {
-          'name': name,
-          'description': `Created with ${document.title} (${window.location.href})`
-        }).then(playlistData => {          
-          playlistData = playlistData.data;
+    const createPlaylistRequest = async (playlistPack, name) => {
+      const createdPlaylist = await axios.post(`/users/${spotifyData.userId}/playlists`, {
+        'name': name,
+        'description': `Created with ${document.title} (${window.location.href})`
+      });
 
-          const addTracksRequest = (playlistId, tracksUris) => {
-            return new Promise((resolveAddTracks, rejectAddTracks) => {
-              axios.post(`/playlists/${playlistId}/tracks`, {
-                uris: tracksUris
-              }).then(() => {
-                resolveAddTracks(true);
-              })
-            })
-          }
-          
-          const addTracksRequests = [];
-          
-          playlistPack.forEach(tracksUris => {
-            addTracksRequests.push(addTracksRequest(playlistData.id, tracksUris));
-          })
-
-          Promise.allSettled(addTracksRequests)
-            .then(() => {
-              resolvePlaylistCreate(playlistData);
-            })
-        })
+      const addTracksRequest = async (playlistId, tracksUris) => {
+        return await axios.post(`/playlists/${playlistId}/tracks`, { uris: tracksUris });
+      }
+      
+      const addTracksRequests = [];
+      
+      playlistPack.forEach(tracksUris => {
+        addTracksRequests.push(addTracksRequest(createdPlaylist.data.id, tracksUris));
       })
+      
+      return await allSettledRequests(addTracksRequests);
     }
 
     const createPlaylistRequests = [];
@@ -160,195 +141,221 @@ const Loader = (props) => {
       createPlaylistRequests.push(createPlaylistRequest(playlistPack, `${configData.newPlaylistName} ${ind > 0 ? `(part ${ind + 1})` : ''}`))
     })
 
-    Promise.allSettled(createPlaylistRequests)
-      .then((createdPlaylistsData) => {
-        // Add popup here with playlist names and links
-        console.log("PLAYLIST CREATION IS RESOLVED:", createdPlaylistsData);
-        setIsLoading(false);
-      })
-    
-    // do requests
+    return await allSettledRequests(createPlaylistRequests);   
   }, [configData, spotifyData.userId])
 
-  const fetchArtistTopTracks = useCallback(() => {
-    console.log('FETCH ARTIST TOP TRACKS');
+  const fetchArtistsTopTracks = useCallback(async (artistsArr) => {
+    if (!artistsArr.length) {
+      return [];
+    }
 
-    // selected playlist here
-    const fetchTopTracks = (artist) => {
-      return new Promise((resolve, reject) => {
-        axios.get(`/artists/${artist}/top-tracks?market=from_token`)
-          .then(res => {
-            let newTracks = [];
+    const fetchTopTracksReq = async (artist) => {
+      const artistTopTracks = await axios.get(`/artists/${artist}/top-tracks?market=from_token`);
+
+      let newTracks = [];
                  
-            res.data.tracks.forEach(track => {
-              // Semantic check by name and artist, not just id inclusion                          
-              if (!spotifyData.library.tracks.includes(track.id)) {
-                newTracks.push(track.uri);
-              }
-            })
-            resolve(newTracks);
-          })
+      artistTopTracks.data.tracks.some(track => {
+        // Semantic check by name and artist, not just id inclusion                          
+        if (!spotifyData.library.tracks.includes(track.id)) {
+          newTracks.push(track.uri);
+        }
+
+        return newTracks.length === configData.targetQuantityPerArtist;
       })
+      
+      return newTracks;
     }
 
     let requestsArray = [];
+    artistsArr.forEach(a => {
+      // prevent adding the same artist more than once (which could already exist in another pack)
+      if (!addedArtists.includes(a)) {
+        requestsArray.push(fetchTopTracksReq(a));
+        setAddedArtists(data => {
+          data.push(a);
+          return data;
+        });
+      }
+    })
 
-    const targetPlaylistArtists = spotifyData.library.artists;    
+    return await allSettledRequests(requestsArray);
+  }, [spotifyData.library, configData, addedArtists])
 
-    for (let i=0; i < targetPlaylistArtists.length; i++) {
-      const artist = targetPlaylistArtists[i];
+  const fetchRelatedArtists = useCallback(async (artistsArr) => {
+    if (!artistsArr.length) {
+      return [];
+    }
 
-      if (artist.ctr < configData.artistTracksThreshold) {
-        break;
+    const fetchRelatedArtistsReq = async (artist) => {
+      const relatedArtists = await axios.get(`/artists/${artist}/related-artists`);
+
+      let newArtists = [];
+
+      // Get only first X depending on config value
+      relatedArtists.data.artists.some(relatedArtist => {
+        const libraryArtists = spotifyData.library.artists.map(a => a.id);
+        if (!libraryArtists.includes(relatedArtist.id)) {
+          newArtists.push(relatedArtist.id);
+        }
+        return newArtists.length === configData.relatedArtistsQuantity;
+      })
+
+      return newArtists;
+    }
+
+    let requestsArray = artistsArr.map(artist => fetchRelatedArtistsReq(artist));
+
+    return await allSettledRequests(requestsArray);
+  }, [configData, spotifyData.library.artists])
+
+  const fetchPlaylistTracks = useCallback(async (playlistId) => {
+    const targetUrl = playlistId === 0 ? '/me/tracks' : `/playlists/${playlistId}/tracks`;
+
+    const fetchedTracks = await synchFetchMultiplePages(targetUrl, 50, items => {
+      let newTracks = [];
+      items.forEach(track => {
+        track = track.track
+        newTracks.push({
+          id: track.id,
+          artists: track.artists.map(a => ({
+            name: a.name,
+            id: a.id
+          }))
+        });
+      })
+      return newTracks;
+    });
+
+    let artists = {};
+
+    fetchedTracks.forEach(t => {
+      t.artists.forEach(a => {
+        const foundArtist = artists[a.id];
+
+        if (foundArtist) {
+          foundArtist.ctr++;
+        } else {
+          artists[a.id] = {
+            name: a.name,
+            ctr: 1
+          }
+        }
+      })
+    })
+
+    // sort artists by ctr DESC
+    artists = Object.entries(artists).sort((a, b) => {
+      return b[1].ctr - a[1].ctr
+    }).reduce((acc, cur) => {
+      const artist = {
+        id: cur[0],
+        name: cur[1].name,
+        ctr: cur[1].ctr
+      };
+
+      acc.push(artist)
+      return acc;
+    }, [])
+
+    const mappedTracks = fetchedTracks.map(t => t.id);
+
+    return {
+      tracks: mappedTracks,
+      artists: artists
+    }
+  }, [synchFetchMultiplePages])
+
+  const initiateProcess = useCallback(async () => {
+    setIsLoading(true);
+
+    try {
+      let targetArtists = [...spotifyData.library.artists];
+
+      if (configData.selectedPlaylist !== 0) {
+        targetArtists = await fetchPlaylistTracks(configData.selectedPlaylist);
       }
 
-      requestsArray.push(fetchTopTracks(artist.id));
+      // artists array is already sorted, so we remove all elements below the threshold
+      for (let i=0; i < targetArtists.length; i++) {
+        const artist = targetArtists[i];
+  
+        if (artist.ctr < configData.artistTracksThreshold) {
+          targetArtists.splice(i, targetArtists.length)
+          break;
+        }
+      }
+      
+      targetArtists = targetArtists.map(a => a.id);
+      
+      if (!targetArtists.length) {
+        setError('No artists found with current configuration! Try to adjust some values');
+        return;
+      }
+
+      if (configData.selectedMode === modeTypes.DIVE_DEEPER) {
+        targetArtists = await fetchRelatedArtists(targetArtists);
+      }
+
+      const tracksToAdd = await fetchArtistsTopTracks(targetArtists);
+
+      // return created playlists data here
+      // and show it in popup with links
+      addTracksToPlaylist(tracksToAdd)
+    } catch (error) {
+      // test it
+      setError(error);
     }
-
-    Promise.allSettled(requestsArray)
-      .then(data => {
-        const tracks = data.reduce((acc, cur) => {          
-          return acc.concat(cur.value);
-        },[]);
-
-        addTracksToPlaylist(tracks);
-      })
-
-  }, [spotifyData.library, configData, addTracksToPlaylist])
-
-  const fetchRelatedArtists = useCallback(() => {
-
-    // do requests
-  }, [])
-
-  const fetchPlaylistTracks = useCallback((playlistId) => {
-    if (playlistId === 0) {
-
-      synchFetchMultiplePages('/me/tracks', 
-      (items) => {
-        let newTracks = [];
-        items.forEach(track => {
-          track = track.track
-          newTracks.push({
-            id: track.id,
-            artists: track.artists.map(a => {
-              return {
-                name: a.name,
-                id: a.id
-              }
-            })
-          });
-        })
-
-        return newTracks;
-      }, 
-      (tracks) => {
-        tracks = tracks.reduce((acc, cur) => cur.status === 'fulfilled' ? acc.concat([...cur.value]) : acc, []);
-
-        // count songs by each artist
-        let artists = {};
-
-        tracks.forEach(t => {
-          t.artists.forEach(a => {
-            const foundArtist = artists[a.id];
-
-            if (foundArtist) {
-              foundArtist.ctr++;
-            } else {
-              artists[a.id] = {
-                name: a.name,
-                ctr: 1
-              }
-            }
-          })
-        })
-
-        // sort artists by ctr DESC
-        artists = Object.entries(artists).sort((a, b) => {
-          return b[1].ctr - a[1].ctr
-        }).reduce((acc, cur) => {
-          const artist = {
-            id: cur[0],
-            name: cur[1].name,
-            ctr: cur[1].ctr
-          };
-
-          acc.push(artist)
-          return acc;
-        }, [])
-
-        tracks = tracks.map(t => t.id);
-
-        setSpotifyData(data => {
-          return {
-          ...data,
-          library: {
-            tracks: tracks,
-            artists: artists,
-            finishedFetch: true
-          }
-        }})
-
-        // switch (configData.selectedMode) {
-        //   case modeTypes.LOOK_CLOSER:
-            
-        //     break;
-          
-        //   case modeTypes.DIVE_DEEPER:
-        //     fetchRelatedArtists()
-        //     break;
-        
-        //   default:
-        //     throw Error(`Unknown mode is selected ${configData.selectedMode}`)            
-        // }
-      })
-    }
-  }, [])
-
-  const initiateProcess = useCallback(() => {
-    // if (configData.selectedPlaylist !== 0) {
-    // gotta think about it
-    // }
-
-    setIsLoading(true);
-    fetchArtistTopTracks();
-  }, [fetchArtistTopTracks])
+  }, [spotifyData.library.artists, configData, fetchArtistsTopTracks, fetchPlaylistTracks, addTracksToPlaylist, fetchRelatedArtists])
 
   // Get user info
   useEffect(() => {
-    // Use lodash here as well
     axios.get('/me')
       .then(res => {
         setSpotifyData(data => {
-          return {
-            ...data,
-            userId: res.data.id
-          }
+          let newSpotifyData = _.cloneDeep(data);
+          newSpotifyData.userId = res.data.id;
+          
+          return newSpotifyData;
         })
+      })
+      .catch(() => {
+        setError();
       })
   }, [])
 
   // Get all user playlists
   useEffect(() => {
-    synchFetchMultiplePages('/me/playlists', 
-    (items) => {
-      return items.map(playlist => {
-        return {
-          id: playlist.id,
-          name: playlist.name,          
-          tracksTotal: playlist.tracks.total
-        }
-      })
-    }, 
-    (playlists) => {
-      setPlaylists(playlists);
-    })
-  }, [setPlaylists])
+    synchFetchMultiplePages('/me/playlists', 50, items => 
+      items.map(playlist => ({ 
+        id: playlist.id,
+        name: playlist.name,          
+        tracksTotal: playlist.tracks.total
+      }))
+    ).then(playlists => {
+      setPlaylists(playlists)});
+  }, [setPlaylists, synchFetchMultiplePages])
 
   // Get all tracks from the library
   useEffect(() => {
-    fetchPlaylistTracks(0);
-  }, [fetchPlaylistTracks])
+    if (spotifyData.library.finishedFetch) {
+      return;
+    }
+
+    fetchPlaylistTracks(0)
+      .then((playlistData) => {
+        setSpotifyData(data => ({
+          ...data,
+          library: {
+            tracks: playlistData.tracks,
+            artists: playlistData.artists,
+            finishedFetch: true
+          }
+        }))
+      })
+      .catch(() => {
+        setError();
+      })
+  }, [fetchPlaylistTracks, spotifyData.library.finishedFetch])
 
   // Initiate currently selected process (only if library already fetched)
   useEffect(() => {
@@ -357,7 +364,10 @@ const Loader = (props) => {
     }
 
     if (configData) {
-      initiateProcess();
+      initiateProcess()
+        .finally(() => {
+          setIsLoading(false);
+        })
     }
   }, [configData, initiateProcess, spotifyData.library.finishedFetch])
 

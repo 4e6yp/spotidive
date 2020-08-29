@@ -12,18 +12,17 @@ const ModeConfigurator = (props) => {
     selectedMode: null,
     artistTracksThreshold: 15,
     targetQuantityPerArtist: 5,
-    similarArtistsQuantity: 10,
+    relatedArtistsQuantity: 10,
     newPlaylistName: `${document.title} Playlist`,
     selectedPlaylist: 0         // default is 0 (library)
   })
 
   const configValueChangedHandler = (type, value) => {
-    setModeConfig(config => {
-      return {
+    setModeConfig(config => ({
         ...config,
         [type]: value
-      }
-    })
+      })
+    )
   }
 
   let playlistsSelector = null;
@@ -71,10 +70,10 @@ const ModeConfigurator = (props) => {
           {
             props.mode === modeTypes.DIVE_DEEPER && (
               <ConfigSlider 
-                title="Target similar artists quantity"
-                action={(value) => configValueChangedHandler('similarArtistsQuantity', value)}
-                value={modeConfig.similarArtistsQuantity}
-                maxValue={10}
+                title="Target related artists quantity"
+                action={(value) => configValueChangedHandler('relatedArtistsQuantity', value)}
+                value={modeConfig.relatedArtistsQuantity}
+                maxValue={20}
               />
             )
           }
