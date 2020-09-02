@@ -4,20 +4,96 @@ import * as processTypes from '../utility/processTypes';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes, { array } from 'prop-types'; 
 import axios from '../axios-spotifyClient';
+import axiosParent from 'axios';
 import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
 import { CircularProgress } from '@material-ui/core';
-import _ from 'lodash';
 
-axiosRetry(axios, {
-  // FIXME bruteforce is not an option! 
-  retries: 10,
-  retryCondition: e => {
-    return isNetworkOrIdempotentRequestError(e) || e.response.status === 429 || e.response.status === 500
-  },
-  // maybe handle delay correctly? depending on retry-after
-  // retryDelay: axiosRetry.exponentialDelay
-  retryDelay: () => 5000
+// axiosRetry(axios, {
+//   retries: 5,
+//   retryCondition: e => {
+//     return isNetworkOrIdempotentRequestError(e) || e.response.status === 500 || e.response.status === 429
+//   },
+//   retryDelay: () => 2000
+// })
+
+// let currentAxiosDelay = 0;
+
+const wait = async (ms) => {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  })
+}
+
+// Split into equal packs (50 requests per pack, for example)
+// Each pack starts after delay (1 sec)
+// If previos pack failed, retry X times before it fully settled. If it's not settled - doesn't matter
+// Return promise.resolve after all packs settled
+
+let requestsCounter = 0;
+const requestsLimit = 50;
+let requestsQueue = [];
+let isWaiting = false;
+let cooldown = 5000;
+
+axios.interceptors.request.use(req => {
+  requestsCounter++;
+
+  if (requestsCounter >= requestsLimit) {
+    console.log('QUEUE', requestsCounter, req);
+    requestsQueue.push(req);
+
+    if (!isWaiting) {
+      isWaiting = true;
+
+      // rewrite with a single promise instead of queue
+      // Or handle allSettled.resolved somehow, dunno
+      (async () => {
+        await wait(cooldown);
+        console.log('Timeout finished');
+        requestsCounter = 0;
+        isWaiting = false;
+
+        while (requestsQueue.length > 0) {
+          axios.request(requestsQueue.splice(0, 1)[0]);
+        }
+      })()
+    }
+    // throw new axiosParent.Cancel('Cancelled due to limitation');
+  } else {
+    console.log('Sending', requestsCounter, req);
+    
+    return req;
+  }
+}, err => {
+  return Promise.reject(err); 
 })
+
+// axios.interceptors.response.use(res => {
+//   // if (currentAxiosDelay > 0 && res.status !== 429) {
+//   //   currentAxiosDelay = 0;
+//   // }
+//   // console.log(res);
+//   return res;
+// }, error => {
+//   if (error.config && error.response && (error.response.status === 429 || error.response.status === 500)) {
+//     if (currentAxiosDelay === 0) {
+//       currentAxiosDelay = parseInt(error.response.headers['retry-after'] || 1);
+      
+//           // (async () => {
+//           //   await wait(currentAxiosDelay * 1000);
+//           // })();
+      
+//       const config = {
+//         ...error.config,
+//         data: JSON.parse(error.config.data)
+//       }
+//       console.log('RETRYING:',config);
+//       return axios.request(config)
+//     }
+//   } else {
+//     return Promise.reject(error);    
+//   }
+// })
 
 export const loadingStates = {
   IN_PROGRESS: 'IN_PROGRESS',
@@ -59,9 +135,18 @@ const Loader = (props) => {
   // const [continueProcessMarker, setContinueProcessMarker] = useState();
 
   const allSettledRequests = async (requestsArr) => {
-    let allRequestsData = await Promise.allSettled(requestsArr);    
-    allRequestsData = allRequestsData.reduce((acc, cur) => cur.status === 'fulfilled' ? acc.concat([...cur.value]) : acc, []);
+    let allRequestsData = await Promise.allSettled(requestsArr);
 
+    allRequestsData = allRequestsData.reduce((acc, cur) => {
+      if (cur.status === 'fulfilled') {
+        if (Array.isArray(cur.value)) {
+          acc = acc.concat([...cur.value]);
+        } else {
+          acc.push(cur.value);
+        }
+      }
+      return acc;
+    }, []);
     return allRequestsData;
   }
 
@@ -132,7 +217,8 @@ const Loader = (props) => {
         addTracksRequests.push(addTracksRequest(createdPlaylist.data.id, tracksUris));
       })
       
-      return await allSettledRequests(addTracksRequests);
+      await allSettledRequests(addTracksRequests);
+      return createdPlaylist.data.id;
     }
 
     const createPlaylistRequests = [];
@@ -141,7 +227,7 @@ const Loader = (props) => {
       createPlaylistRequests.push(createPlaylistRequest(playlistPack, `${configData.newPlaylistName} ${ind > 0 ? `(part ${ind + 1})` : ''}`))
     })
 
-    return await allSettledRequests(createPlaylistRequests);   
+    return await allSettledRequests(createPlaylistRequests);
   }, [configData, spotifyData.userId])
 
   const fetchArtistsTopTracks = useCallback(async (artistsArr) => {
@@ -300,7 +386,12 @@ const Loader = (props) => {
 
       // return created playlists data here
       // and show it in popup with links
+
+      // also disable and reenable buttons on configurator. And fix BS with insta-starting a new process
       addTracksToPlaylist(tracksToAdd)
+        .then(data => {
+          console.log(data);
+        })     
     } catch (error) {
       // test it
       setError(error);
@@ -311,12 +402,10 @@ const Loader = (props) => {
   useEffect(() => {
     axios.get('/me')
       .then(res => {
-        setSpotifyData(data => {
-          let newSpotifyData = _.cloneDeep(data);
-          newSpotifyData.userId = res.data.id;
-          
-          return newSpotifyData;
-        })
+        setSpotifyData(data => ({
+          ...data,
+          userId: res.data.id
+        }))
       })
       .catch(() => {
         setError();
