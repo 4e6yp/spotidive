@@ -1,22 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import ProgressBar from '../components/ProgressBar';
 import * as processTypes from '../utility/processTypes';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes, { array } from 'prop-types'; 
 import axios from '../axios-spotifyClient';
-import axiosParent from 'axios';
 import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
-import { CircularProgress } from '@material-ui/core';
+import { CircularProgress, Typography, Container } from '@material-ui/core';
 
-// axiosRetry(axios, {
-//   retries: 5,
-//   retryCondition: e => {
-//     return isNetworkOrIdempotentRequestError(e) || e.response.status === 500 || e.response.status === 429
-//   },
-//   retryDelay: () => 2000
-// })
-
-// let currentAxiosDelay = 0;
+axiosRetry(axios, {
+  retries: 5,
+  retryCondition: e => {
+    return isNetworkOrIdempotentRequestError(e) || `${e.response.status}`[0] === "5" || e.response.status === 429
+  },
+  retryDelay: () => 3000
+})
 
 const wait = async (ms) => {
   return new Promise(resolve => {
@@ -24,76 +20,24 @@ const wait = async (ms) => {
   })
 }
 
-// Split into equal packs (50 requests per pack, for example)
-// Each pack starts after delay (1 sec)
-// If previos pack failed, retry X times before it fully settled. If it's not settled - doesn't matter
-// Return promise.resolve after all packs settled
-
 let requestsCounter = 0;
 const requestsLimit = 50;
-let requestsQueue = [];
-let isWaiting = false;
-let cooldown = 5000;
+let cooldown = 4000;
 
-axios.interceptors.request.use(req => {
+axios.interceptors.request.use(async req => {
   requestsCounter++;
 
-  if (requestsCounter >= requestsLimit) {
-    console.log('QUEUE', requestsCounter, req);
-    requestsQueue.push(req);
+  if (requestsCounter > requestsLimit) {
+    const cooldownMultiplier = Math.floor(requestsCounter / requestsLimit);
+    await wait(cooldown * cooldownMultiplier);
 
-    if (!isWaiting) {
-      isWaiting = true;
-
-      // rewrite with a single promise instead of queue
-      // Or handle allSettled.resolved somehow, dunno
-      (async () => {
-        await wait(cooldown);
-        console.log('Timeout finished');
-        requestsCounter = 0;
-        isWaiting = false;
-
-        while (requestsQueue.length > 0) {
-          axios.request(requestsQueue.splice(0, 1)[0]);
-        }
-      })()
-    }
-    // throw new axiosParent.Cancel('Cancelled due to limitation');
+    // reset counter when all queued requests are finished
+    requestsCounter = requestsCounter - 1 === requestsLimit ? 0 : requestsCounter - 1;    
+    return req;
   } else {
-    console.log('Sending', requestsCounter, req);
-    
     return req;
   }
-}, err => {
-  return Promise.reject(err); 
 })
-
-// axios.interceptors.response.use(res => {
-//   // if (currentAxiosDelay > 0 && res.status !== 429) {
-//   //   currentAxiosDelay = 0;
-//   // }
-//   // console.log(res);
-//   return res;
-// }, error => {
-//   if (error.config && error.response && (error.response.status === 429 || error.response.status === 500)) {
-//     if (currentAxiosDelay === 0) {
-//       currentAxiosDelay = parseInt(error.response.headers['retry-after'] || 1);
-      
-//           // (async () => {
-//           //   await wait(currentAxiosDelay * 1000);
-//           // })();
-      
-//       const config = {
-//         ...error.config,
-//         data: JSON.parse(error.config.data)
-//       }
-//       console.log('RETRYING:',config);
-//       return axios.request(config)
-//     }
-//   } else {
-//     return Promise.reject(error);    
-//   }
-// })
 
 export const loadingStates = {
   IN_PROGRESS: 'IN_PROGRESS',
@@ -124,6 +68,10 @@ const Loader = (props) => {
   const [loadingState, setLoadingState] = useState();
   
   const [isLoading, setIsLoading] = useState(false);
+
+  const [calculatedTracksCount, setCalculatedTracksCount] = useState(null);
+
+  const playlistTracksLimit = 10000;
 
   /*
     Marker is contextual and depends on current process:
@@ -182,7 +130,6 @@ const Loader = (props) => {
 
   const addTracksToPlaylist = useCallback(async (tracks) => {
     const addLimit = 100;
-    const playlistTracksLimit = 10000;
 
     const splitArrayIntoPacks = (data, itemsPerPack) => {
       let dataToProceed = [...data];
@@ -301,13 +248,17 @@ const Loader = (props) => {
       let newTracks = [];
       items.forEach(track => {
         track = track.track
-        newTracks.push({
-          id: track.id,
-          artists: track.artists.map(a => ({
-            name: a.name,
-            id: a.id
-          }))
-        });
+
+        // Add only saved songs to result from non-library playlist
+        if (playlistId === 0 || spotifyData.library.tracks.includes(track.id)) {        
+          newTracks.push({
+            id: track.id,
+            artists: track.artists.map(a => ({
+              name: a.name,
+              id: a.id
+            }))
+          });
+        }
       })
       return newTracks;
     });
@@ -349,7 +300,7 @@ const Loader = (props) => {
       tracks: mappedTracks,
       artists: artists
     }
-  }, [synchFetchMultiplePages])
+  }, [synchFetchMultiplePages, spotifyData.library.tracks])
 
   const initiateProcess = useCallback(async () => {
     setIsLoading(true);
@@ -358,7 +309,8 @@ const Loader = (props) => {
       let targetArtists = [...spotifyData.library.artists];
 
       if (configData.selectedPlaylist !== 0) {
-        targetArtists = await fetchPlaylistTracks(configData.selectedPlaylist);
+        targetArtists = (await fetchPlaylistTracks(configData.selectedPlaylist)).artists;
+        console.log("TEST", targetArtists);
       }
 
       // artists array is already sorted, so we remove all elements below the threshold
@@ -447,22 +399,55 @@ const Loader = (props) => {
   }, [fetchPlaylistTracks, spotifyData.library.finishedFetch])
 
   // Initiate currently selected process (only if library already fetched)
+  // Recalculate tracks count with each config change
   useEffect(() => {
     if (!spotifyData.library.finishedFetch) {
       return;
     }
 
-    if (configData) {
+    let artistsCtr = 0;
+    spotifyData.library.artists.some((a) => {
+      if (a.ctr < configData.artistTracksThreshold) {
+        return true;
+      } else {
+        artistsCtr++;
+        return false;
+      }
+    })
+
+    if (configData.viewedMode === modeTypes.DIVE_DEEPER) {
+      artistsCtr *= configData.relatedArtistsQuantity;
+    }
+
+    setCalculatedTracksCount(artistsCtr * configData.targetQuantityPerArtist);    
+
+    if (configData.selectedMode) {
       initiateProcess()
         .finally(() => {
           setIsLoading(false);
         })
     }
-  }, [configData, initiateProcess, spotifyData.library.finishedFetch])
+  }, [configData, initiateProcess, spotifyData.library])
+
+  
+  useEffect(() => {
+    if (!spotifyData.library.finishedFetch) {
+      return;
+    }
+
+
+  }, [spotifyData.library, configData])
 
   return (
-    isLoading ? <CircularProgress /> : null
-    //<ProgressBar progress={progress} loadingState={loadingState}/>
+    <Container>
+      { isLoading ? <CircularProgress /> : null }
+      { !calculatedTracksCount || configData.selectedPlaylist !== 0 ? null : // add calculate btn here for non library playlists
+        <Typography variant="subtitle1" align="center" color="textSecondary" component="p">
+          {calculatedTracksCount <= playlistTracksLimit ? 'Playlist' : 
+            `${Math.ceil(calculatedTracksCount / playlistTracksLimit)} playlists`} with total of {calculatedTracksCount} tracks (max) will be created
+        </Typography>
+      }
+    </Container>
   );
 }
 

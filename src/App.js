@@ -70,7 +70,7 @@ const App = () => {
       'client_id': process.env.REACT_APP_API_CLIENT_KEY,
       'response_type': 'token',
       'redirect_uri': `${process.env.REACT_APP_SPOTIFY_URL}/callback`,
-      'scope': 'user-library-read playlist-modify-public',
+      'scope': 'user-library-read playlist-modify-public playlist-read-private playlist-read-collaborative',
     };
 
     let query = '';

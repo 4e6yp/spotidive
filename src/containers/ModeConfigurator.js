@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as modeTypes from '../utility/modeTypes';
 import ConfigSlider from '../components/ConfigSlider';
 import PropTypes from 'prop-types';
@@ -10,12 +10,20 @@ const ModeConfigurator = (props) => {
 
   const [modeConfig, setModeConfig] = useState({
     selectedMode: null,
+    viewedMode: null,
     artistTracksThreshold: 15,
     targetQuantityPerArtist: 5,
     relatedArtistsQuantity: 10,
     newPlaylistName: `${document.title} Playlist`,
     selectedPlaylist: 0         // default is 0 (library)
   })
+
+  useEffect(() => {
+    setModeConfig(curConfig => ({
+      ...curConfig,
+      viewedMode: props.mode
+    }))
+  }, [props.mode])
 
   const configValueChangedHandler = (type, value) => {
     setModeConfig(config => ({
@@ -43,8 +51,6 @@ const ModeConfigurator = (props) => {
 
   return (
     <>    
-      <Loader configData={modeConfig.selectedMode ? modeConfig : null} setPlaylists={setPlaylists}/>
-
       <Container >
         <Box>
           <TextField 
@@ -83,6 +89,11 @@ const ModeConfigurator = (props) => {
           { playlistsSelector }
         </Box>
       </Container>
+
+      <Loader 
+        configData={modeConfig} 
+        setPlaylists={setPlaylists}
+      />
 
       <Button onClick={() => configValueChangedHandler('selectedMode', props.mode)}>
         Start Process
