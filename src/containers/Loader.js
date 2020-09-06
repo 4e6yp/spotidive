@@ -31,6 +31,7 @@ let requestsCounter = 0;
 const requestsLimit = 50;
 let cooldown = 4000;
 
+// Split requests into packs with delays in-between (due to api limitations)
 axios.interceptors.request.use(async req => {
   requestsCounter++;
 
@@ -53,7 +54,7 @@ export const loadingStates = {
 }
 
 const Loader = (props) => {
-  const { setPlaylists, configData } = props;
+  const { setPlaylists, configData, setMessage } = props;
 
   const [spotifyData, setSpotifyData] = useState({
     library: {
@@ -71,13 +72,10 @@ const Loader = (props) => {
     content: <></>
   });
 
-  const [error, setError] = useState(null);
-
-  const [progress, setProgress] = useState(0);
-
-  const [currentProcess, setCurrentProcess] = useState(processTypes.FETCH_LIBRARY_TRACKS);
-
-  const [loadingState, setLoadingState] = useState();
+  const setError = useCallback((text = 'Error occured, please try again') => {
+    // FIXME
+    // setMessage(text, 'error')
+  }, [])
   
   const [isLoading, setIsLoading] = useState(false);
 
@@ -161,10 +159,23 @@ const Loader = (props) => {
     let playlistPacks = splitArrayIntoPacks(tracksPacks, playlistTracksLimit / addLimit);
 
     const createPlaylistRequest = async (playlistPack, name) => {
-      const createdPlaylist = await axios.post(`/users/${spotifyData.userId}/playlists`, {
-        'name': name,
-        'description': `Created with ${document.title} (${window.location.href})`
-      });
+      // extra retries for playlist creation, since it's vital for the process
+      const createPlaylist = async (playlistName, retryCounter = 1) => {
+        try {
+          return await axios.post(`/users/${spotifyData.userId}/playlists`, {
+            'name': name,
+            'description': `Created with ${document.title} (${window.location.href})`
+          });
+        } catch {
+          if (retryCounter >= 3) {
+            throw Error(`Can't create playlist ${name} after ${retryCounter} retries`);
+          } else {
+            await createPlaylist(playlistName, retryCounter+1)
+          }
+        }
+      }
+
+      const createdPlaylist = await createPlaylist(name);
 
       const addTracksRequest = async (playlistId, tracksUris) => {
         return await axios.post(`/playlists/${playlistId}/tracks`, { uris: tracksUris });
@@ -342,8 +353,7 @@ const Loader = (props) => {
       targetArtists = targetArtists.map(a => a.id);
       
       if (!targetArtists.length) {
-        setError('No artists found with current configuration! Try to adjust some values');
-        return;
+        return Promise.reject('No artists found with current configuration! Try to adjust some values');
       }
 
       if (configData.selectedMode === modeTypes.DIVE_DEEPER) {
@@ -357,7 +367,7 @@ const Loader = (props) => {
       // test it
       setError(error);
     }
-  }, [spotifyData.library.artists, configData, fetchArtistsTopTracks, fetchPlaylistTracks, addTracksToPlaylist, fetchRelatedArtists])
+  }, [spotifyData.library.artists, configData, fetchArtistsTopTracks, fetchPlaylistTracks, addTracksToPlaylist, fetchRelatedArtists, setError])
 
   // Get user info
   useEffect(() => {
@@ -368,8 +378,8 @@ const Loader = (props) => {
           userId: res.data.id
         }))
       })
-      .catch(() => {
-        setError();
+      .catch((error) => {
+        throw Error(error)
       })
   }, [])
 
@@ -405,7 +415,7 @@ const Loader = (props) => {
       .catch(() => {
         setError();
       })
-  }, [fetchPlaylistTracks, spotifyData.library.finishedFetch])
+  }, [fetchPlaylistTracks, spotifyData.library.finishedFetch, setError])
 
   const showPlaylistsResultModal = useCallback(async (playlistIds) => {
     const playlistRequest = async (id) => {
@@ -477,8 +487,11 @@ const Loader = (props) => {
         .finally(() => {
           setIsLoading(false);
         })
+        .catch(error => {
+          setError(error)
+        })
     }
-  }, [configData, initiateProcess, spotifyData.library, showPlaylistsResultModal])
+  }, [configData, initiateProcess, spotifyData.library, showPlaylistsResultModal, setError])
 
   return (
     <Container>
@@ -504,7 +517,8 @@ const Loader = (props) => {
 
 Loader.propTypes = {
   configData: PropTypes.object,
-  setPlaylists: PropTypes.func.isRequired
+  setPlaylists: PropTypes.func.isRequired,
+  setMessage: PropTypes.func.isRequired
 }
 
 export default Loader;

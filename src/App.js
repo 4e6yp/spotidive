@@ -6,22 +6,21 @@ import queryString from 'query-string';
 import { Container, Box, Typography, Snackbar } from '@material-ui/core';
 import { Alert } from '@material-ui/lab';
 import ModeConfigurator from './containers/ModeConfigurator';
-import Loader from './containers/Loader';
 
 const App = () => {
   const [token, setToken] = useState(null);
   const [viewedMode, setViewedMode] = useState(modeTypes.LOOK_CLOSER);
 
-  const [message, setMessage] = useState(null);
-
-  const [loaderIsBusy, setLoaderIsBusy] = useState(false);
+  const [message, setMessage] = useState({
+    text: null,
+    type: 'error'
+  });
 
   const checkSavedToken = () => {
     const expirationDate = new Date(localStorage.getItem('expirationDate'));
 
     if (expirationDate < new Date()) {
       setToken(null);
-
       localStorage.clear();
     }
     else {
@@ -33,6 +32,15 @@ const App = () => {
       };
     }
   }
+
+  axios.interceptors.response.use(response => response, error => {
+    if (error.response.status === 401 || error.response.status === 403) {
+      setToken(null);
+      localStorage.clear();
+      setMessage({text: 'Authentication expired, please relogin and try again', type: 'error'});
+    }
+    return Promise.reject(error);
+  })
 
   // Handle auth and callback 
   useEffect(() => {
@@ -53,7 +61,7 @@ const App = () => {
         }
       } 
       else {
-        setMessage('Authentication in Spotify failed, please try again');        
+        setMessage({text: 'Authentication in Spotify failed, please try again', type: 'error'});        
       }
     }
     else {
@@ -94,19 +102,19 @@ const App = () => {
         <ModeSwitcher changeMode={setViewedMode} isAuth={token !== null} login={loginHandler}/>
         {
           token !== null
-          ? <ModeConfigurator mode={viewedMode} />
+          ? <ModeConfigurator mode={viewedMode} setMessage={(messageText, messageType) => setMessage({text: messageText, type: messageType})}/>
           : null
         }
       </Box>
       <Snackbar 
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        open={!!message}
+        open={!!message.text}
       >
         <Alert 
-          variant="filled"
-          severity='error'
+          variant='filled'
+          severity={message.type}
         >
-          { message }
+          { message.text }
         </Alert>
       </Snackbar>
     </Container>
