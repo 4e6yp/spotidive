@@ -1,17 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as processTypes from '../utility/processTypes';
 import * as modeTypes from '../utility/modeTypes';
-import PropTypes, { array } from 'prop-types'; 
+import PropTypes from 'prop-types'; 
 import axios from '../axios-spotifyClient';
 import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
-import { CircularProgress, Typography, Container } from '@material-ui/core';
+import { CircularProgress, Typography, Container, Modal } from '@material-ui/core';
+import CreatedPlaylistPaper from '../components/CreatedPlaylistPaper';
 
 axiosRetry(axios, {
   retries: 5,
   retryCondition: e => {
     return isNetworkOrIdempotentRequestError(e) || `${e.response.status}`[0] === "5" || e.response.status === 429
   },
-  retryDelay: () => 3000
+  retryDelay: (_, error) => {
+    if (error.response.status === 429) {
+      const retryAfter = parseInt(error.response.headers['retry-after']);
+      return retryAfter ? (retryAfter * 1000) + 500 : 3000
+    }    
+    return 3000;
+  }
 })
 
 const wait = async (ms) => {
@@ -59,6 +66,11 @@ const Loader = (props) => {
 
   const [addedArtists, setAddedArtists] = useState([]);
 
+  const [modal, setModal] = useState({
+    isVisible: false,
+    content: <></>
+  });
+
   const [error, setError] = useState(null);
 
   const [progress, setProgress] = useState(0);
@@ -73,14 +85,14 @@ const Loader = (props) => {
 
   const playlistTracksLimit = 10000;
 
-  /*
-    Marker is contextual and depends on current process:
-    FETCH_PLAYLIST_TRACKS    - offset for previous packet
-    FETCH_ARTIST_TOP_TRACKS    - artistId
-    FETCH_RELATED_ARTISTS    - artistId
-    ADD_TRACKS_TO_PLAYLIST    - trackId
-  */
-  // const [continueProcessMarker, setContinueProcessMarker] = useState();
+  const isTrackAlreadyAdded = useCallback((trackData) => {
+    const savedTracks = spotifyData.library.tracks;
+    const trackArtists = trackData.artists.map(a => a.id);
+    
+    return savedTracks.some(track => (
+      track.id === trackData.id || (track.name === trackData.name && track.artists.all(artist => trackArtists.includes(artist.id)))
+    ))
+  }, [spotifyData.library.tracks])
 
   const allSettledRequests = async (requestsArr) => {
     let allRequestsData = await Promise.allSettled(requestsArr);
@@ -189,7 +201,7 @@ const Loader = (props) => {
                  
       artistTopTracks.data.tracks.some(track => {
         // Semantic check by name and artist, not just id inclusion                          
-        if (!spotifyData.library.tracks.includes(track.id)) {
+        if (!isTrackAlreadyAdded(track)) {
           newTracks.push(track.uri);
         }
 
@@ -212,7 +224,7 @@ const Loader = (props) => {
     })
 
     return await allSettledRequests(requestsArray);
-  }, [spotifyData.library, configData, addedArtists])
+  }, [configData, addedArtists, isTrackAlreadyAdded])
 
   const fetchRelatedArtists = useCallback(async (artistsArr) => {
     if (!artistsArr.length) {
@@ -250,9 +262,10 @@ const Loader = (props) => {
         track = track.track
 
         // Add only saved songs to result from non-library playlist
-        if (playlistId === 0 || spotifyData.library.tracks.includes(track.id)) {        
+        if (playlistId === 0 || isTrackAlreadyAdded(track)) {
           newTracks.push({
             id: track.id,
+            name: track.name,
             artists: track.artists.map(a => ({
               name: a.name,
               id: a.id
@@ -294,13 +307,17 @@ const Loader = (props) => {
       return acc;
     }, [])
 
-    const mappedTracks = fetchedTracks.map(t => t.id);
+    const mappedTracks = fetchedTracks.map(t => ({
+      id: t.id,
+      name: t.name,
+      artists: t.artists.map(a => a.id)
+    }));
 
     return {
       tracks: mappedTracks,
       artists: artists
     }
-  }, [synchFetchMultiplePages, spotifyData.library.tracks])
+  }, [synchFetchMultiplePages, isTrackAlreadyAdded])
 
   const initiateProcess = useCallback(async () => {
     setIsLoading(true);
@@ -310,7 +327,6 @@ const Loader = (props) => {
 
       if (configData.selectedPlaylist !== 0) {
         targetArtists = (await fetchPlaylistTracks(configData.selectedPlaylist)).artists;
-        console.log("TEST", targetArtists);
       }
 
       // artists array is already sorted, so we remove all elements below the threshold
@@ -336,14 +352,7 @@ const Loader = (props) => {
 
       const tracksToAdd = await fetchArtistsTopTracks(targetArtists);
 
-      // return created playlists data here
-      // and show it in popup with links
-
-      // also disable and reenable buttons on configurator. And fix BS with insta-starting a new process
-      addTracksToPlaylist(tracksToAdd)
-        .then(data => {
-          console.log(data);
-        })     
+      return await addTracksToPlaylist(tracksToAdd)        
     } catch (error) {
       // test it
       setError(error);
@@ -398,6 +407,44 @@ const Loader = (props) => {
       })
   }, [fetchPlaylistTracks, spotifyData.library.finishedFetch])
 
+  const showPlaylistsResultModal = useCallback(async (playlistIds) => {
+    const playlistRequest = async (id) => {
+      let playlistData = await axios.get(`/playlists/${id}`);
+      
+      playlistData = playlistData.data;
+      return {
+        id: playlistData.id,
+        image: playlistData.images[0] ? playlistData.images[0].url : null,
+        name: playlistData.name,
+        uri: playlistData.uri,
+        href: playlistData.href
+      }
+    }
+
+    const requestsArr = playlistIds.map(id => playlistRequest(id));
+
+    const playlists = await allSettledRequests(requestsArr);
+
+    let modalContent = <Typography variant="h4">
+      {playlistIds.length > 1 ? 'Playlist is' : `${playlistIds.length} playlists are`} created! Go and check it out!
+    </Typography>
+
+    if (playlists.length) {
+      modalContent = playlists.map(p => (
+        <CreatedPlaylistPaper key={p.id} name={p.name} image={p.image} uri={p.uri}/>
+      ))
+    }
+
+    modalContent = <Container>
+      {modalContent}
+    </Container>
+
+    setModal({
+      isVisible: true,
+      content: modalContent
+    })
+  }, [])
+
   // Initiate currently selected process (only if library already fetched)
   // Recalculate tracks count with each config change
   useEffect(() => {
@@ -423,20 +470,15 @@ const Loader = (props) => {
 
     if (configData.selectedMode) {
       initiateProcess()
+        .then((createdPlaylistsData) => {
+          showPlaylistsResultModal(createdPlaylistsData);
+          // also disable and reenable buttons on configurator. And fix BS with insta-starting a new process
+        })
         .finally(() => {
           setIsLoading(false);
         })
     }
-  }, [configData, initiateProcess, spotifyData.library])
-
-  
-  useEffect(() => {
-    if (!spotifyData.library.finishedFetch) {
-      return;
-    }
-
-
-  }, [spotifyData.library, configData])
+  }, [configData, initiateProcess, spotifyData.library, showPlaylistsResultModal])
 
   return (
     <Container>
@@ -447,6 +489,15 @@ const Loader = (props) => {
             `${Math.ceil(calculatedTracksCount / playlistTracksLimit)} playlists`} with total of {calculatedTracksCount} tracks (max) will be created
         </Typography>
       }
+      <Modal 
+        open={modal.isVisible} 
+        onClose={() => setModal({
+          isVisible: false,
+          content: <></>
+        })}
+      >
+        {modal.content}
+      </Modal>
     </Container>
   );
 }

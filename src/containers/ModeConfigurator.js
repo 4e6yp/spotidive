@@ -51,7 +51,7 @@ const ModeConfigurator = (props) => {
 
   return (
     <>    
-      <Container >
+      <Container>
         <Box>
           <TextField 
             label="New playlist name" 
