@@ -41,10 +41,8 @@ axios.interceptors.request.use(async req => {
 
     // reset counter when all queued requests are finished
     requestsCounter = requestsCounter - 1 === requestsLimit ? 0 : requestsCounter - 1;    
-    return req;
-  } else {
-    return req;
   }
+  return req;
 })
 
 export const loadingStates = {
@@ -54,7 +52,7 @@ export const loadingStates = {
 }
 
 const Loader = (props) => {
-  const { setPlaylists, configData, setMessage } = props;
+  const { setPlaylists, configData, showError } = props;
 
   const [spotifyData, setSpotifyData] = useState({
     library: {
@@ -71,11 +69,6 @@ const Loader = (props) => {
     isVisible: false,
     content: <></>
   });
-
-  const setError = useCallback((text = 'Error occured, please try again') => {
-    // FIXME
-    // setMessage(text, 'error')
-  }, [])
   
   const [isLoading, setIsLoading] = useState(false);
 
@@ -364,10 +357,9 @@ const Loader = (props) => {
 
       return await addTracksToPlaylist(tracksToAdd)        
     } catch (error) {
-      // test it
-      setError(error);
+      showError(error);
     }
-  }, [spotifyData.library.artists, configData, fetchArtistsTopTracks, fetchPlaylistTracks, addTracksToPlaylist, fetchRelatedArtists, setError])
+  }, [spotifyData.library.artists, configData, fetchArtistsTopTracks, fetchPlaylistTracks, addTracksToPlaylist, fetchRelatedArtists, showError])
 
   // Get user info
   useEffect(() => {
@@ -378,10 +370,10 @@ const Loader = (props) => {
           userId: res.data.id
         }))
       })
-      .catch((error) => {
-        throw Error(error)
+      .catch(() => {
+        showError()
       })
-  }, [])
+  }, [showError])
 
   // Get all user playlists
   useEffect(() => {
@@ -413,9 +405,9 @@ const Loader = (props) => {
         }))
       })
       .catch(() => {
-        setError();
+        showError();
       })
-  }, [fetchPlaylistTracks, spotifyData.library.finishedFetch, setError])
+  }, [fetchPlaylistTracks, spotifyData.library.finishedFetch, showError])
 
   const showPlaylistsResultModal = useCallback(async (playlistIds) => {
     const playlistRequest = async (id) => {
@@ -488,10 +480,10 @@ const Loader = (props) => {
           setIsLoading(false);
         })
         .catch(error => {
-          setError(error)
+          showError(error)
         })
     }
-  }, [configData, initiateProcess, spotifyData.library, showPlaylistsResultModal, setError])
+  }, [configData, initiateProcess, spotifyData.library, showPlaylistsResultModal, showError])
 
   return (
     <Container>
@@ -518,7 +510,7 @@ const Loader = (props) => {
 Loader.propTypes = {
   configData: PropTypes.object,
   setPlaylists: PropTypes.func.isRequired,
-  setMessage: PropTypes.func.isRequired
+  showError: PropTypes.func.isRequired
 }
 
 export default Loader;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ModeSwitcher from './components/ModeSwitcher/ModeSwitcher';
 import * as modeTypes from './utility/modeTypes';
 import axios from './axios-spotifyClient';
@@ -90,6 +90,10 @@ const App = () => {
     window.location.href = 'https://accounts.spotify.com/authorize?'+query;
   };
 
+  const showNewError = useCallback((text = 'Error occured, please try again') => {
+    setMessage({text: text, type: 'error'})
+  }, [setMessage])
+
   return (
     <Container maxWidth="md" component="main">
       <Typography component="h1" variant="h2" align="center" color="textPrimary">
@@ -102,7 +106,7 @@ const App = () => {
         <ModeSwitcher changeMode={setViewedMode} isAuth={token !== null} login={loginHandler}/>
         {
           token !== null
-          ? <ModeConfigurator mode={viewedMode} setMessage={(messageText, messageType) => setMessage({text: messageText, type: messageType})}/>
+          ? <ModeConfigurator mode={viewedMode} showError={showNewError}/>
           : null
         }
       </Box>

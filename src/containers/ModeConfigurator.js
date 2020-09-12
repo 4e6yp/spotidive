@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as modeTypes from '../utility/modeTypes';
 import ConfigSlider from '../components/ConfigSlider';
 import PropTypes from 'prop-types';
@@ -6,7 +6,7 @@ import Loader from './Loader';
 import { Button, Box, MenuItem, FormControl, InputLabel, Select, Container, TextField } from '@material-ui/core';
 
 const ModeConfigurator = (props) => {
-  const { setMessage } = props;
+  const { showError } = props;
   const [playlists, setPlaylists] = useState([]);
 
   const [modeConfig, setModeConfig] = useState({
@@ -32,7 +32,7 @@ const ModeConfigurator = (props) => {
         [type]: value
       })
     );
-    setMessage(null, 'error');
+    showError(null);
   }
 
   let playlistsSelector = null;
@@ -95,7 +95,7 @@ const ModeConfigurator = (props) => {
       <Loader 
         configData={modeConfig} 
         setPlaylists={setPlaylists}
-        setMessage={useCallback((text, type) => setMessage(text, type), [setMessage])}
+        showError={showError}
       />
 
       <Button onClick={() => configValueChangedHandler('selectedMode', props.mode)}>
@@ -107,7 +107,7 @@ const ModeConfigurator = (props) => {
 
 ModeConfigurator.propTypes = {
   mode: PropTypes.oneOf(Object.values(modeTypes)).isRequired,
-  setMessage: PropTypes.func.isRequired
+  showError: PropTypes.func.isRequired
 }
 
 export default ModeConfigurator;
