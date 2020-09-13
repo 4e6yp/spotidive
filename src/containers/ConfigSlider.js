@@ -51,7 +51,7 @@ const ConfigSlider = (props) => {
 }
 
 ConfigSlider.propTypes = {
-  value: PropTypes.string.isRequired,
+  value: PropTypes.number.isRequired,
   maxValue: PropTypes.number,
   action: PropTypes.func.isRequired
 }

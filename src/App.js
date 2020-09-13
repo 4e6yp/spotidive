@@ -104,11 +104,7 @@ const App = () => {
       </Typography>
       <Box>
         <ModeSwitcher changeMode={setViewedMode} isAuth={token !== null} login={loginHandler}/>
-        {
-          token !== null
-          ? <ModeConfigurator mode={viewedMode} showError={showNewError}/>
-          : null
-        }
+        <ModeConfigurator mode={viewedMode} showError={showNewError} isAuth={token !== null} login={loginHandler}/>
       </Box>
       <Snackbar 
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}

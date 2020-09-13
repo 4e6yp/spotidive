@@ -1,26 +1,26 @@
 import React from 'react';
-import Mode from './Mode/Mode';
+import Mode from './Mode';
 import { Container, Button } from '@material-ui/core';
 import * as modeTypes from '../../utility/modeTypes';
 import PropTypes from 'prop-types';
 
 const ModeSwitcher = (props) => {
   const changeModeBtn = (type) => {
-    let text
-    let action
+    let text;
+    let action;
     if (!props.isAuth) {
-      text = 'Login to continue'
-      action = props.login
+      text = 'Login to continue';
+      action = props.login;
     } else {
-      text = 'Let\'s get started'
-      action = () => props.changeMode(type)
+      text = 'Let\'s get started';
+      action = () => props.changeMode(type);
     }
 
     return (
       <Button onClick={action}>
         {text}
       </Button>
-    )
+    );
   }
 
   return (

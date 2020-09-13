@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import * as processTypes from '../utility/processTypes';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types'; 
 import axios from '../axios-spotifyClient';
 import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
 import { CircularProgress, Typography, Container, Modal } from '@material-ui/core';
 import CreatedPlaylistPaper from '../components/CreatedPlaylistPaper';
+import processSteps from '../utility/processSteps';
 
 axiosRetry(axios, {
   retries: 5,
@@ -52,7 +52,15 @@ export const loadingStates = {
 }
 
 const Loader = (props) => {
-  const { setPlaylists, configData, showError } = props;
+  const { 
+    setPlaylists, 
+    configData, 
+    showError, 
+    setRecalculatedTracks, 
+    isAuth,
+    reenableConfigurator,
+    setStepCompleted
+  } = props;
 
   const [spotifyData, setSpotifyData] = useState({
     library: {
@@ -72,8 +80,6 @@ const Loader = (props) => {
   
   const [isLoading, setIsLoading] = useState(false);
 
-  const [calculatedTracksCount, setCalculatedTracksCount] = useState(null);
-
   const playlistTracksLimit = 10000;
 
   const isTrackAlreadyAdded = useCallback((trackData) => {
@@ -81,7 +87,7 @@ const Loader = (props) => {
     const trackArtists = trackData.artists.map(a => a.id);
     
     return savedTracks.some(track => (
-      track.id === trackData.id || (track.name === trackData.name && track.artists.all(artist => trackArtists.includes(artist.id)))
+      track.id === trackData.id || (track.name === trackData.name && track.artists.every(artist => trackArtists.includes(artist.id)))
     ))
   }, [spotifyData.library.tracks])
 
@@ -332,6 +338,7 @@ const Loader = (props) => {
       if (configData.selectedPlaylist !== 0) {
         targetArtists = (await fetchPlaylistTracks(configData.selectedPlaylist)).artists;
       }
+      setStepCompleted(processSteps.FETCH_PLAYLIST_TRACKS.id);
 
       // artists array is already sorted, so we remove all elements below the threshold
       for (let i=0; i < targetArtists.length; i++) {
@@ -344,25 +351,45 @@ const Loader = (props) => {
       }
       
       targetArtists = targetArtists.map(a => a.id);
-      
+      setStepCompleted(processSteps.SELECT_ARTISTS_FROM_PLAYLIST.id);
+
       if (!targetArtists.length) {
         return Promise.reject('No artists found with current configuration! Try to adjust some values');
       }
 
       if (configData.selectedMode === modeTypes.DIVE_DEEPER) {
         targetArtists = await fetchRelatedArtists(targetArtists);
+        setStepCompleted(processSteps.FETCH_RELATED_ARTISTS.id);
       }
 
       const tracksToAdd = await fetchArtistsTopTracks(targetArtists);
+      setStepCompleted(processSteps.FETCH_ARTIST_TOP_TRACKS.id);
 
-      return await addTracksToPlaylist(tracksToAdd)        
+      if (!tracksToAdd.length) {
+        return Promise.reject('No new tracks found with current configuration! Try to adjust some values');
+      }
+
+      const createdPlaylists = await addTracksToPlaylist(tracksToAdd);
+      setStepCompleted(processSteps.ADD_TRACKS_TO_PLAYLIST.id);
+
+      return createdPlaylists;
     } catch (error) {
       showError(error);
     }
-  }, [spotifyData.library.artists, configData, fetchArtistsTopTracks, fetchPlaylistTracks, addTracksToPlaylist, fetchRelatedArtists, showError])
+  }, [
+    spotifyData.library.artists, 
+    configData, 
+    fetchArtistsTopTracks, 
+    fetchPlaylistTracks, 
+    addTracksToPlaylist, 
+    fetchRelatedArtists, 
+    showError, 
+    setStepCompleted
+  ])
 
   // Get user info
   useEffect(() => {
+    if (!isAuth) { return }
     axios.get('/me')
       .then(res => {
         setSpotifyData(data => ({
@@ -373,10 +400,11 @@ const Loader = (props) => {
       .catch(() => {
         showError()
       })
-  }, [showError])
+  }, [showError, isAuth])
 
   // Get all user playlists
   useEffect(() => {
+    if (!isAuth) { return }
     synchFetchMultiplePages('/me/playlists', 50, items => 
       items.map(playlist => ({ 
         id: playlist.id,
@@ -385,10 +413,11 @@ const Loader = (props) => {
       }))
     ).then(playlists => {
       setPlaylists(playlists)});
-  }, [setPlaylists, synchFetchMultiplePages])
+  }, [setPlaylists, synchFetchMultiplePages, isAuth])
 
   // Get all tracks from the library
   useEffect(() => {
+    if (!isAuth) { return }
     if (spotifyData.library.finishedFetch) {
       return;
     }
@@ -407,7 +436,7 @@ const Loader = (props) => {
       .catch(() => {
         showError();
       })
-  }, [fetchPlaylistTracks, spotifyData.library.finishedFetch, showError])
+  }, [fetchPlaylistTracks, spotifyData.library.finishedFetch, showError, isAuth])
 
   const showPlaylistsResultModal = useCallback(async (playlistIds) => {
     const playlistRequest = async (id) => {
@@ -447,12 +476,9 @@ const Loader = (props) => {
     })
   }, [])
 
-  // Initiate currently selected process (only if library already fetched)
   // Recalculate tracks count with each config change
   useEffect(() => {
-    if (!spotifyData.library.finishedFetch) {
-      return;
-    }
+    if (!isAuth || !spotifyData.library.finishedFetch || isLoading) { return }
 
     let artistsCtr = 0;
     spotifyData.library.artists.some((a) => {
@@ -468,32 +494,47 @@ const Loader = (props) => {
       artistsCtr *= configData.relatedArtistsQuantity;
     }
 
-    setCalculatedTracksCount(artistsCtr * configData.targetQuantityPerArtist);    
+    setRecalculatedTracks(artistsCtr * configData.targetQuantityPerArtist);
+  }, [
+    configData, 
+    spotifyData.library, 
+    isAuth, 
+    setRecalculatedTracks,
+    isLoading
+  ])
+
+  // Initiate currently selected process (only if library already fetched)
+  useEffect(() => {
+    if (!isAuth || !spotifyData.library.finishedFetch || isLoading) { return }
 
     if (configData.selectedMode) {
       initiateProcess()
         .then((createdPlaylistsData) => {
           showPlaylistsResultModal(createdPlaylistsData);
-          // also disable and reenable buttons on configurator. And fix BS with insta-starting a new process
         })
         .finally(() => {
           setIsLoading(false);
+          setAddedArtists([]);
+          reenableConfigurator();
         })
         .catch(error => {
           showError(error)
         })
     }
-  }, [configData, initiateProcess, spotifyData.library, showPlaylistsResultModal, showError])
+  }, [
+    configData, 
+    initiateProcess, 
+    spotifyData.library, 
+    showPlaylistsResultModal, 
+    showError, 
+    isAuth, 
+    reenableConfigurator,
+    isLoading
+  ])
 
   return (
     <Container>
       { isLoading ? <CircularProgress /> : null }
-      { !calculatedTracksCount || configData.selectedPlaylist !== 0 ? null : // add calculate btn here for non library playlists
-        <Typography variant="subtitle1" align="center" color="textSecondary" component="p">
-          {calculatedTracksCount <= playlistTracksLimit ? 'Playlist' : 
-            `${Math.ceil(calculatedTracksCount / playlistTracksLimit)} playlists`} with total of {calculatedTracksCount} tracks (max) will be created
-        </Typography>
-      }
       <Modal 
         open={modal.isVisible} 
         onClose={() => setModal({
@@ -510,7 +551,11 @@ const Loader = (props) => {
 Loader.propTypes = {
   configData: PropTypes.object,
   setPlaylists: PropTypes.func.isRequired,
-  showError: PropTypes.func.isRequired
+  showError: PropTypes.func.isRequired,
+  setRecalculatedTracks: PropTypes.func.isRequired,
+  isAuth: PropTypes.bool.isRequired,
+  reenableConfigurator: PropTypes.func.isRequired,
+  setStepCompleted: PropTypes.func.isRequired
 }
 
 export default Loader;

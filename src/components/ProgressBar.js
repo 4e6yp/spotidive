@@ -1,7 +1,6 @@
 import React from 'react';
 import { Box, LinearProgress, Typography } from '@material-ui/core';
 import PropTypes from 'prop-types';
-import { loadingStates } from '../containers/Loader';
 
 const ProgressBar = (props) => {
   return (
