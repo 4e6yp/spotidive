@@ -332,58 +332,54 @@ const Loader = (props) => {
   const initiateProcess = useCallback(async () => {
     setIsLoading(true);
 
-    try {
-      let targetArtists = [...spotifyData.library.artists];
+    let targetArtists = [...spotifyData.library.artists];
 
-      if (configData.selectedPlaylist !== 0) {
-        targetArtists = (await fetchPlaylistTracks(configData.selectedPlaylist)).artists;
-      }
-      setStepCompleted(processSteps.FETCH_PLAYLIST_TRACKS.id);
-
-      // artists array is already sorted, so we remove all elements below the threshold
-      for (let i=0; i < targetArtists.length; i++) {
-        const artist = targetArtists[i];
-  
-        if (artist.ctr < configData.artistTracksThreshold) {
-          targetArtists.splice(i, targetArtists.length)
-          break;
-        }
-      }
-      
-      targetArtists = targetArtists.map(a => a.id);
-      setStepCompleted(processSteps.SELECT_ARTISTS_FROM_PLAYLIST.id);
-
-      if (!targetArtists.length) {
-        return Promise.reject('No artists found with current configuration! Try to adjust some values');
-      }
-
-      if (configData.selectedMode === modeTypes.DIVE_DEEPER) {
-        targetArtists = await fetchRelatedArtists(targetArtists);
-        setStepCompleted(processSteps.FETCH_RELATED_ARTISTS.id);
-      }
-
-      const tracksToAdd = await fetchArtistsTopTracks(targetArtists);
-      setStepCompleted(processSteps.FETCH_ARTIST_TOP_TRACKS.id);
-
-      if (!tracksToAdd.length) {
-        return Promise.reject('No new tracks found with current configuration! Try to adjust some values');
-      }
-
-      const createdPlaylists = await addTracksToPlaylist(tracksToAdd);
-      setStepCompleted(processSteps.ADD_TRACKS_TO_PLAYLIST.id);
-
-      return createdPlaylists;
-    } catch (error) {
-      showError(error);
+    if (configData.selectedPlaylist !== 0) {
+      targetArtists = (await fetchPlaylistTracks(configData.selectedPlaylist)).artists;
     }
+    setStepCompleted(processSteps.FETCH_PLAYLIST_TRACKS.id);
+
+    // artists array is already sorted, so we remove all elements below the threshold
+    for (let i=0; i < targetArtists.length; i++) {
+      const artist = targetArtists[i];
+
+      if (artist.ctr < configData.artistTracksThreshold) {
+        targetArtists.splice(i, targetArtists.length)
+        break;
+      }
+    }
+    
+    targetArtists = targetArtists.map(a => a.id);
+    setStepCompleted(processSteps.SELECT_ARTISTS_FROM_PLAYLIST.id);
+
+    if (!targetArtists.length) {
+      return Promise.reject('No artists found with current configuration! Try to adjust some values');
+    }
+
+    if (configData.selectedMode === modeTypes.DIVE_DEEPER) {
+      targetArtists = await fetchRelatedArtists(targetArtists);
+      setStepCompleted(processSteps.FETCH_RELATED_ARTISTS.id);
+    }
+
+    const tracksToAdd = await fetchArtistsTopTracks(targetArtists);
+    setStepCompleted(processSteps.FETCH_ARTIST_TOP_TRACKS.id);
+
+    if (!tracksToAdd.length) {
+      return Promise.reject('No new tracks found with current configuration! Try to adjust some values');
+    }
+
+    const createdPlaylists = await addTracksToPlaylist(tracksToAdd);
+    setStepCompleted(processSteps.ADD_TRACKS_TO_PLAYLIST.id);
+
+    return createdPlaylists;
+
   }, [
     spotifyData.library.artists, 
     configData, 
     fetchArtistsTopTracks, 
     fetchPlaylistTracks, 
     addTracksToPlaylist, 
-    fetchRelatedArtists, 
-    showError, 
+    fetchRelatedArtists,
     setStepCompleted
   ])
 

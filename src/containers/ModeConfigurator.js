@@ -151,8 +151,8 @@ const ModeConfigurator = (props) => {
   }
 
   const initiateProcess = () => {
-    configValueChangedHandler('selectedMode', props.mode);
     setIsDisabled(true);
+    configValueChangedHandler('selectedMode', props.mode);
   }
 
   const handleProcessCompleted = () => {
