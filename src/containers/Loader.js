@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useReducer } from 'react';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types'; 
 import axios from '../axios-spotifyClient';
 import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
-import { CircularProgress, Typography, Container, Modal } from '@material-ui/core';
+import { CircularProgress, Typography, Container, Modal, Button } from '@material-ui/core';
 import CreatedPlaylistPaper from '../components/CreatedPlaylistPaper';
 import processSteps from '../utility/processSteps';
 
@@ -45,10 +45,45 @@ axios.interceptors.request.use(async req => {
   return req;
 })
 
-export const loadingStates = {
-  IN_PROGRESS: 'IN_PROGRESS',
-  ERROR: 'ERROR',
-  FINISHED: 'FINISHED'
+const spotifyDataActions = {
+  PENDING_FETCH: 'PENDING_FETCH',
+  FINISHED_PENDING: 'FINISHED_PENDING',
+  FINISHED_FETCH: 'FINISHED_FETCH'
+}
+
+const spotifyDataReducer = (state, action) => {
+  switch (action.type) {
+    case spotifyDataActions.PENDING_FETCH:
+      return {
+        ...state,
+        fetch: {
+          pending: true,
+          finished: false
+        }
+      }
+    
+    case spotifyDataActions.FINISHED_FETCH:
+      return {
+        tracks: action.tracks,
+        artists: action.artists,
+        fetch: {
+          ...state.fetch,
+          finished: true
+        }
+      }
+
+    case spotifyDataActions.FINISHED_PENDING:
+      return {
+        ...state,
+        fetch: {
+          ...state.fetch,
+          pending: false
+        }
+      }
+  
+    default:
+      return state;
+  }
 }
 
 const Loader = (props) => {
@@ -62,14 +97,16 @@ const Loader = (props) => {
     setStepCompleted
   } = props;
 
-  const [spotifyData, setSpotifyData] = useState({
-    library: {
-      tracks: [],
-      artists: {},
-      finishedFetch: false
-    },
-    userId: null
-  });
+  const [spotifyData, spotifyDataDispatch] = useReducer(spotifyDataReducer, {
+    tracks: [],
+    artists: {},
+    fetch: {
+      pending: false,
+      finished: false
+    }
+  })
+
+  const [spotifyUserId, setSpotifyUserId] = useState(null);
 
   const [addedArtists, setAddedArtists] = useState([]);
 
@@ -83,13 +120,13 @@ const Loader = (props) => {
   const playlistTracksLimit = 10000;
 
   const isTrackAlreadyAdded = useCallback((trackData) => {
-    const savedTracks = spotifyData.library.tracks;
+    const savedTracks = spotifyData.tracks;
     const trackArtists = trackData.artists.map(a => a.id);
     
     return savedTracks.some(track => (
       track.id === trackData.id || (track.name === trackData.name && track.artists.every(artist => trackArtists.includes(artist.id)))
     ))
-  }, [spotifyData.library.tracks])
+  }, [spotifyData.tracks])
 
   const allSettledRequests = async (requestsArr) => {
     let allRequestsData = await Promise.allSettled(requestsArr);
@@ -161,7 +198,7 @@ const Loader = (props) => {
       // extra retries for playlist creation, since it's vital for the process
       const createPlaylist = async (playlistName, retryCounter = 1) => {
         try {
-          return await axios.post(`/users/${spotifyData.userId}/playlists`, {
+          return await axios.post(`/users/${spotifyUserId}/playlists`, {
             'name': name,
             'description': `Created with ${document.title} (${window.location.href})`
           });
@@ -197,7 +234,7 @@ const Loader = (props) => {
     })
 
     return await allSettledRequests(createPlaylistRequests);
-  }, [configData, spotifyData.userId])
+  }, [configData, spotifyUserId])
 
   const fetchArtistsTopTracks = useCallback(async (artistsArr) => {
     if (!artistsArr.length) {
@@ -248,7 +285,7 @@ const Loader = (props) => {
 
       // Get only first X depending on config value
       relatedArtists.data.artists.some(relatedArtist => {
-        const libraryArtists = spotifyData.library.artists.map(a => a.id);
+        const libraryArtists = spotifyData.artists.map(a => a.id);
         if (!libraryArtists.includes(relatedArtist.id)) {
           newArtists.push(relatedArtist.id);
         }
@@ -261,7 +298,7 @@ const Loader = (props) => {
     let requestsArray = artistsArr.map(artist => fetchRelatedArtistsReq(artist));
 
     return await allSettledRequests(requestsArray);
-  }, [configData, spotifyData.library.artists])
+  }, [configData, spotifyData.artists])
 
   const fetchPlaylistTracks = useCallback(async (playlistId) => {
     const targetUrl = playlistId === 0 ? '/me/tracks' : `/playlists/${playlistId}/tracks`;
@@ -329,10 +366,10 @@ const Loader = (props) => {
     }
   }, [synchFetchMultiplePages, isTrackAlreadyAdded])
 
-  const initiateProcess = useCallback(async () => {
+  const executeProcess = useCallback(async () => {
     setIsLoading(true);
 
-    let targetArtists = [...spotifyData.library.artists];
+    let targetArtists = [...spotifyData.artists];
 
     if (configData.selectedPlaylist !== 0) {
       targetArtists = (await fetchPlaylistTracks(configData.selectedPlaylist)).artists;
@@ -356,7 +393,7 @@ const Loader = (props) => {
       return Promise.reject('No artists found with current configuration! Try to adjust some values');
     }
 
-    if (configData.selectedMode === modeTypes.DIVE_DEEPER) {
+    if (configData.viewedMode === modeTypes.DIVE_DEEPER) {
       targetArtists = await fetchRelatedArtists(targetArtists);
       setStepCompleted(processSteps.FETCH_RELATED_ARTISTS.id);
     }
@@ -372,67 +409,15 @@ const Loader = (props) => {
     setStepCompleted(processSteps.ADD_TRACKS_TO_PLAYLIST.id);
 
     return createdPlaylists;
-
   }, [
-    spotifyData.library.artists, 
-    configData, 
-    fetchArtistsTopTracks, 
-    fetchPlaylistTracks, 
     addTracksToPlaylist, 
+    configData, 
+    fetchArtistsTopTracks,
+    fetchPlaylistTracks, 
     fetchRelatedArtists,
-    setStepCompleted
+    setStepCompleted, 
+    spotifyData.artists
   ])
-
-  // Get user info
-  useEffect(() => {
-    if (!isAuth) { return }
-    axios.get('/me')
-      .then(res => {
-        setSpotifyData(data => ({
-          ...data,
-          userId: res.data.id
-        }))
-      })
-      .catch(() => {
-        showError()
-      })
-  }, [showError, isAuth])
-
-  // Get all user playlists
-  useEffect(() => {
-    if (!isAuth) { return }
-    synchFetchMultiplePages('/me/playlists', 50, items => 
-      items.map(playlist => ({ 
-        id: playlist.id,
-        name: playlist.name,          
-        tracksTotal: playlist.tracks.total
-      }))
-    ).then(playlists => {
-      setPlaylists(playlists)});
-  }, [setPlaylists, synchFetchMultiplePages, isAuth])
-
-  // Get all tracks from the library
-  useEffect(() => {
-    if (!isAuth) { return }
-    if (spotifyData.library.finishedFetch) {
-      return;
-    }
-
-    fetchPlaylistTracks(0)
-      .then((playlistData) => {
-        setSpotifyData(data => ({
-          ...data,
-          library: {
-            tracks: playlistData.tracks,
-            artists: playlistData.artists,
-            finishedFetch: true
-          }
-        }))
-      })
-      .catch(() => {
-        showError();
-      })
-  }, [fetchPlaylistTracks, spotifyData.library.finishedFetch, showError, isAuth])
 
   const showPlaylistsResultModal = useCallback(async (playlistIds) => {
     const playlistRequest = async (id) => {
@@ -472,12 +457,101 @@ const Loader = (props) => {
     })
   }, [])
 
+  const initiateProcess = useCallback(() => {
+    if (!isAuth || isLoading) { return }
+
+    if (!spotifyData.fetch.finished) {
+      spotifyDataDispatch({
+        type: spotifyDataActions.PENDING_FETCH
+      })
+      return;
+    }
+
+    if (configData.viewedMode) {
+      executeProcess()
+        .then((createdPlaylistsData) => {
+          showPlaylistsResultModal(createdPlaylistsData);
+        })
+        .finally(() => {
+          setIsLoading(false);
+          setAddedArtists([]);
+          reenableConfigurator();
+        })
+        .catch(error => {
+          showError(error)
+        })
+    }
+  }, [
+      configData, 
+      showPlaylistsResultModal, 
+      showError, 
+      isAuth, 
+      reenableConfigurator,
+      isLoading,
+      executeProcess,
+      spotifyData.fetch
+    ])
+
+  // Get user info
+  useEffect(() => {
+    if (!isAuth) { return }
+    axios.get('/me')
+      .then(res => {
+        setSpotifyUserId(res.data.id);
+      })
+      .catch(() => {
+        showError()
+      })
+  }, [showError, isAuth])
+
+  // Get all user playlists
+  useEffect(() => {
+    if (!isAuth) { return }
+    synchFetchMultiplePages('/me/playlists', 50, items => 
+      items.map(playlist => ({ 
+        id: playlist.id,
+        name: playlist.name,          
+        tracksTotal: playlist.tracks.total
+      }))
+    ).then(playlists => {
+      setPlaylists(playlists)
+    });
+  }, [setPlaylists, synchFetchMultiplePages, isAuth])
+
+  // Get all tracks from the library
+  useEffect(() => {
+    if (!isAuth) { return }
+    if (spotifyData.fetch.finished) {
+      return;
+    }
+
+    fetchPlaylistTracks(0)
+      .then((playlistData) => {
+        spotifyDataDispatch({
+          type: spotifyDataActions.FINISHED_FETCH,
+          tracks: playlistData.tracks,
+          artists: playlistData.artists
+        })
+      })
+      .catch(() => {
+        showError();
+      })
+  }, [fetchPlaylistTracks, showError, isAuth, spotifyData.fetch.finished])
+
+  // Start process if it was initiated while fetching library
+  useEffect(() => {
+    if (spotifyData.fetch.pending && spotifyData.fetch.finished) {
+      initiateProcess();
+      spotifyDataDispatch({type: spotifyDataActions.FINISHED_PENDING});      
+    }
+  }, [spotifyData.fetch, initiateProcess])
+
   // Recalculate tracks count with each config change
   useEffect(() => {
-    if (!isAuth || !spotifyData.library.finishedFetch || isLoading) { return }
+    if (!isAuth || !spotifyData.fetch.finished || isLoading) { return }
 
     let artistsCtr = 0;
-    spotifyData.library.artists.some((a) => {
+    spotifyData.artists.some((a) => {
       if (a.ctr < configData.artistTracksThreshold) {
         return true;
       } else {
@@ -493,44 +567,21 @@ const Loader = (props) => {
     setRecalculatedTracks(artistsCtr * configData.targetQuantityPerArtist);
   }, [
     configData, 
-    spotifyData.library, 
+    spotifyData.fetch.finished,
+    spotifyData.artists,
     isAuth, 
     setRecalculatedTracks,
     isLoading
   ])
-
-  // Initiate currently selected process (only if library already fetched)
-  useEffect(() => {
-    if (!isAuth || !spotifyData.library.finishedFetch || isLoading) { return }
-
-    if (configData.selectedMode) {
-      initiateProcess()
-        .then((createdPlaylistsData) => {
-          showPlaylistsResultModal(createdPlaylistsData);
-        })
-        .finally(() => {
-          setIsLoading(false);
-          setAddedArtists([]);
-          reenableConfigurator();
-        })
-        .catch(error => {
-          showError(error)
-        })
-    }
-  }, [
-    configData, 
-    initiateProcess, 
-    spotifyData.library, 
-    showPlaylistsResultModal, 
-    showError, 
-    isAuth, 
-    reenableConfigurator,
-    isLoading
-  ])
+  
+  const startProccessBtn = props.isAuth
+  ? <Button onClick={initiateProcess}>Start Process</Button>
+  : <Button onClick={props.login}>Login to continue</Button>
 
   return (
     <Container>
       { isLoading ? <CircularProgress /> : null }
+      { startProccessBtn }
       <Modal 
         open={modal.isVisible} 
         onClose={() => setModal({
@@ -551,7 +602,9 @@ Loader.propTypes = {
   setRecalculatedTracks: PropTypes.func.isRequired,
   isAuth: PropTypes.bool.isRequired,
   reenableConfigurator: PropTypes.func.isRequired,
-  setStepCompleted: PropTypes.func.isRequired
+  disableConfigurator: PropTypes.func.isRequired,
+  setStepCompleted: PropTypes.func.isRequired,
+  login: PropTypes.func.isRequired
 }
 
 export default Loader;

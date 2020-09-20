@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types';
 import Loader from './Loader';
-import { Button, Box, MenuItem, FormControl, Select, Container, TextField, Typography, Stepper, Step, StepLabel, StepContent } from '@material-ui/core';
+import { Box, MenuItem, FormControl, Select, Container, TextField, Typography, Stepper, Step, StepLabel, StepContent } from '@material-ui/core';
 import ConfigSlider from './ConfigSlider';
 import processSteps from '../utility/processSteps';
 
@@ -11,7 +11,6 @@ const ModeConfigurator = (props) => {
   const [playlists, setPlaylists] = useState([]);
 
   const [modeConfig, setModeConfig] = useState({
-    selectedMode: null,
     viewedMode: null,
     artistTracksThreshold: 15,
     targetQuantityPerArtist: 5,
@@ -150,14 +149,12 @@ const ModeConfigurator = (props) => {
     }
   }
 
-  const initiateProcess = () => {
+  const handleProcessStarted = () => {
     setIsDisabled(true);
-    configValueChangedHandler('selectedMode', props.mode);
   }
 
   const handleProcessCompleted = () => {
     setIsDisabled(false);
-    configValueChangedHandler('selectedMode', null);
     
     setStepsToShow(steps => {
       const newSteps = {...steps};
@@ -167,10 +164,6 @@ const ModeConfigurator = (props) => {
       return newSteps;
     })
   }
-
-  const startProccessBtn = props.isAuth
-  ? <Button onClick={initiateProcess}>Start Process</Button>
-  : <Button onClick={props.login}>Login to continue</Button>
 
   return (
     <>    
@@ -197,9 +190,10 @@ const ModeConfigurator = (props) => {
         setRecalculatedTracks={handleStepsRecalculated}
         isAuth={props.isAuth}
         reenableConfigurator={handleProcessCompleted}
+        disableConfigurator={handleProcessStarted}
         setStepCompleted={(step) => setStepCompleted(step)}
+        login={props.login}
       />
-      { startProccessBtn }
     </>
   );
 }
