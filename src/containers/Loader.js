@@ -6,6 +6,8 @@ import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
 import { CircularProgress, Typography, Container, Modal, Button } from '@material-ui/core';
 import CreatedPlaylistPaper from '../components/CreatedPlaylistPaper';
 import processSteps from '../utility/processSteps';
+import { allSettledRequests, synchFetchMultiplePages } from '../utility/Loader'
+import { spotifyDataActions, spotifyDataReducer } from '../utility/SpotifyReducer'
 
 axiosRetry(axios, {
   retries: 5,
@@ -44,47 +46,6 @@ axios.interceptors.request.use(async req => {
   }
   return req;
 })
-
-const spotifyDataActions = {
-  PENDING_FETCH: 'PENDING_FETCH',
-  FINISHED_PENDING: 'FINISHED_PENDING',
-  FINISHED_FETCH: 'FINISHED_FETCH'
-}
-
-const spotifyDataReducer = (state, action) => {
-  switch (action.type) {
-    case spotifyDataActions.PENDING_FETCH:
-      return {
-        ...state,
-        fetch: {
-          pending: true,
-          finished: false
-        }
-      }
-    
-    case spotifyDataActions.FINISHED_FETCH:
-      return {
-        tracks: action.tracks,
-        artists: action.artists,
-        fetch: {
-          ...state.fetch,
-          finished: true
-        }
-      }
-
-    case spotifyDataActions.FINISHED_PENDING:
-      return {
-        ...state,
-        fetch: {
-          ...state.fetch,
-          pending: false
-        }
-      }
-  
-    default:
-      return state;
-  }
-}
 
 const Loader = (props) => {
   const { 
@@ -127,52 +88,6 @@ const Loader = (props) => {
       track.id === trackData.id || (track.name === trackData.name && track.artists.every(artist => trackArtists.includes(artist.id)))
     ))
   }, [spotifyData.tracks])
-
-  const allSettledRequests = async (requestsArr) => {
-    let allRequestsData = await Promise.allSettled(requestsArr);
-
-    allRequestsData = allRequestsData.reduce((acc, cur) => {
-      if (cur.status === 'fulfilled') {
-        if (Array.isArray(cur.value)) {
-          acc = acc.concat([...cur.value]);
-        } else {
-          acc.push(cur.value);
-        }
-      }
-      return acc;
-    }, []);
-    return allRequestsData;
-  }
-
-  /**
-   * perRequestFunction gets request response as input and should return object.
-   * 
-   * finishedFunciton gets array of processed objects (from each request) after all requests are finished. Should return object.
-   */
-  const synchFetchMultiplePages = useCallback(async (url, limit, perRequestFunction) => {
-    const firstPage = await axios.get(`${url}?market=from_token&limit=${limit}`);    
-    const firstPageData = perRequestFunction(firstPage.data.items);
-
-    if (!firstPage.data.next) {
-      return firstPageData;
-    }
-
-    const totalPagesNum = Math.ceil(firstPage.data.total / limit);
-
-    const fetchPageData = async (currentOffset) => {
-      const requestData = await axios.get(`${url}?market=from_token&limit=${limit}&offset=${currentOffset}`);
-      return perRequestFunction(requestData.data.items);
-    }
-
-    let dataRequests = [];
-
-    for (let i=limit; i <= totalPagesNum * limit; i += limit) {
-      dataRequests.push(fetchPageData(i));
-    }
-    
-    const allPagesData = await allSettledRequests(dataRequests, firstPageData);
-    return firstPageData.concat(allPagesData);
-  }, [])
 
   const addTracksToPlaylist = useCallback(async (tracks) => {
     const addLimit = 100;
@@ -364,7 +279,45 @@ const Loader = (props) => {
       tracks: mappedTracks,
       artists: artists
     }
-  }, [synchFetchMultiplePages, isTrackAlreadyAdded])
+  }, [isTrackAlreadyAdded])
+
+  const showPlaylistsResultModal = useCallback(async (playlistIds) => {
+    const playlistRequest = async (id) => {
+      let playlistData = await axios.get(`/playlists/${id}`);
+      
+      playlistData = playlistData.data;
+      return {
+        id: playlistData.id,
+        image: playlistData.images[0] ? playlistData.images[0].url : null,
+        name: playlistData.name,
+        uri: playlistData.uri,
+        href: playlistData.href
+      }
+    }
+
+    const requestsArr = playlistIds.map(id => playlistRequest(id));
+
+    const playlists = await allSettledRequests(requestsArr);
+
+    let modalContent = <Typography variant="h4">
+      {playlistIds.length > 1 ? 'Playlist is' : `${playlistIds.length} playlists are`} created! Go and check it out!
+    </Typography>
+
+    if (playlists.length) {
+      modalContent = playlists.map(p => (
+        <CreatedPlaylistPaper key={p.id} name={p.name} image={p.image} uri={p.uri}/>
+      ))
+    }
+
+    modalContent = <Container>
+      {modalContent}
+    </Container>
+
+    setModal({
+      isVisible: true,
+      content: modalContent
+    })
+  }, [])
 
   const executeProcess = useCallback(async () => {
     setIsLoading(true);
@@ -408,7 +361,8 @@ const Loader = (props) => {
     const createdPlaylists = await addTracksToPlaylist(tracksToAdd);
     setStepCompleted(processSteps.ADD_TRACKS_TO_PLAYLIST.id);
 
-    return createdPlaylists;
+    await showPlaylistsResultModal(createdPlaylists);
+    return;
   }, [
     addTracksToPlaylist, 
     configData, 
@@ -416,46 +370,9 @@ const Loader = (props) => {
     fetchPlaylistTracks, 
     fetchRelatedArtists,
     setStepCompleted, 
-    spotifyData.artists
+    spotifyData.artists,
+    showPlaylistsResultModal
   ])
-
-  const showPlaylistsResultModal = useCallback(async (playlistIds) => {
-    const playlistRequest = async (id) => {
-      let playlistData = await axios.get(`/playlists/${id}`);
-      
-      playlistData = playlistData.data;
-      return {
-        id: playlistData.id,
-        image: playlistData.images[0] ? playlistData.images[0].url : null,
-        name: playlistData.name,
-        uri: playlistData.uri,
-        href: playlistData.href
-      }
-    }
-
-    const requestsArr = playlistIds.map(id => playlistRequest(id));
-
-    const playlists = await allSettledRequests(requestsArr);
-
-    let modalContent = <Typography variant="h4">
-      {playlistIds.length > 1 ? 'Playlist is' : `${playlistIds.length} playlists are`} created! Go and check it out!
-    </Typography>
-
-    if (playlists.length) {
-      modalContent = playlists.map(p => (
-        <CreatedPlaylistPaper key={p.id} name={p.name} image={p.image} uri={p.uri}/>
-      ))
-    }
-
-    modalContent = <Container>
-      {modalContent}
-    </Container>
-
-    setModal({
-      isVisible: true,
-      content: modalContent
-    })
-  }, [])
 
   const initiateProcess = useCallback(() => {
     if (!isAuth || isLoading) { return }
@@ -469,9 +386,6 @@ const Loader = (props) => {
 
     if (configData.viewedMode) {
       executeProcess()
-        .then((createdPlaylistsData) => {
-          showPlaylistsResultModal(createdPlaylistsData);
-        })
         .finally(() => {
           setIsLoading(false);
           setAddedArtists([]);
@@ -482,8 +396,7 @@ const Loader = (props) => {
         })
     }
   }, [
-      configData, 
-      showPlaylistsResultModal, 
+      configData,  
       showError, 
       isAuth, 
       reenableConfigurator,
@@ -516,7 +429,7 @@ const Loader = (props) => {
     ).then(playlists => {
       setPlaylists(playlists)
     });
-  }, [setPlaylists, synchFetchMultiplePages, isAuth])
+  }, [setPlaylists, isAuth])
 
   // Get all tracks from the library
   useEffect(() => {
