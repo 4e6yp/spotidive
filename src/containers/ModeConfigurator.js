@@ -2,11 +2,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types';
 import Loader from './Loader';
-import { Box, MenuItem, FormControl, Select, Container, TextField, Typography, Stepper, Step, StepLabel, StepContent } from '@material-ui/core';
+import { Box, MenuItem, FormControl, Select, Container, TextField, Typography, Stepper, Step, StepLabel, StepContent, makeStyles } from '@material-ui/core';
 import ConfigSlider from './ConfigSlider';
 import processSteps from '../utility/processSteps';
 
+const useStyles = makeStyles({
+  FormControl: {
+    bottom: '5px',
+    minWidth: '300px'
+  }
+})
+
 const ModeConfigurator = (props) => {
+  const classes = useStyles();
+
   const { showError, mode } = props;
   const [playlists, setPlaylists] = useState([]);
 
@@ -89,7 +98,7 @@ const ModeConfigurator = (props) => {
         }
         
         const playlistsSelector = (
-          <FormControl style={{minWidth: 300}}>
+          <FormControl className={classes.FormControl}>
             <Select labelId="playlistsSelect" value={modeConfig.selectedPlaylist} onChange={(event) => configValueChangedHandler('selectedPlaylist', event.target.value)}>
               <MenuItem value={0}>Library</MenuItem>
               { playlistItems }
@@ -132,11 +141,11 @@ const ModeConfigurator = (props) => {
         />
 
         return <Typography component={'div'}>
-          For each of the found artists it will get {targetQuantityParam} of it's top tracks.
+          For each of the found artists it will get {targetQuantityParam} of his top tracks.
         </Typography>;
 
       case steps.ADD_TRACKS_TO_PLAYLIST.id:
-        const playlistNameParam = <TextField 
+        const playlistNameParam = <TextField className={classes.FormControl} 
           value={modeConfig.newPlaylistName}
           onChange={(event) => configValueChangedHandler("newPlaylistName", event.target.value)}
         />
