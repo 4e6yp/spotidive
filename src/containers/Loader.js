@@ -3,7 +3,7 @@ import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types'; 
 import axios from '../axios-spotifyClient';
 import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
-import { Typography, Container, Modal, Button } from '@material-ui/core';
+import { Typography, Box, Modal, Button, makeStyles } from '@material-ui/core';
 import CreatedPlaylistPaper from '../components/CreatedPlaylistPaper';
 import processSteps from '../utility/processSteps';
 import { allSettledRequests, synchFetchMultiplePages } from '../utility/Loader'
@@ -48,7 +48,35 @@ axios.interceptors.request.use(async req => {
   return req;
 })
 
+const useStyles = makeStyles({
+  root: {
+    textAlign: 'center'
+  },
+  Button: {
+    marginTop: '20px'
+  },
+  Modal: {
+    backdropFilter: 'blur(5px)',
+    display:'flex',
+    alignItems:'center',
+    justifyContent:'center'
+  },
+  ModalContentContainer: {
+    textAlign: 'center',
+    minWidth: '60%',
+    backgroundColor: 'rgba(1, 1, 1, 0.3)',
+    padding: '40px'
+  },
+  ModalPlaylists: {
+    display: 'flex',
+    justifyContent: 'space-evenly',
+    paddingTop: '70px'
+  }
+});
+
 const Loader = (props) => {
+  const classes = useStyles();
+
   const { 
     setPlaylists, 
     configData, 
@@ -92,9 +120,25 @@ const Loader = (props) => {
 
   const [addedArtists, setAddedArtists] = useState([]);
 
+  const closeModal = () => {
+    setModal({
+      isVisible: false,
+      content: <></>
+    })
+  }
+
   const [modal, setModal] = useState({
     isVisible: false,
     content: <></>
+    // <Box className={classes.ModalContentContainer}>
+    //   <Typography variant='h3'>Enjoy your new playlist!</Typography>
+    //   <div className={classes.ModalPlaylists}>
+    //     <CreatedPlaylistPaper key={343} name={'Second playlist'} image={'https://via.placeholder.com/500'} uri={'test'}/>
+    //     <CreatedPlaylistPaper key={123} name={'Test name'} image={'https://via.placeholder.com/500'} uri={'test'}/>
+    //     <CreatedPlaylistPaper key={345} name={'Second playlist'} image={'https://via.placeholder.com/500'} uri={'test'}/>
+    //   </div>
+    //   <Button variant="contained" size="large" className={classes.Button} onClick={closeModal}>Continue Exploring</Button>
+    // </Box>
   });
   
   const [isLoading, setIsLoading] = useState(false);
@@ -332,25 +376,29 @@ const Loader = (props) => {
 
     const playlists = await allSettledRequests(requestsArr);
 
-    let modalContent = <Typography variant="h4">
-      {playlistIds.length > 1 ? 'Playlist is' : `${playlistIds.length} playlists are`} created! Go and check it out!
-    </Typography>
+    let playlistsCards = null;
 
     if (playlists.length) {
-      modalContent = playlists.map(p => (
+      playlistsCards = playlists.map(p => (
         <CreatedPlaylistPaper key={p.id} name={p.name} image={p.image} uri={p.uri}/>
       ))
+
+      playlistsCards = <div className={classes.ModalPlaylists}>
+        {playlistsCards}
+      </div>
     }
 
-    modalContent = <Container>
-      {modalContent}
-    </Container>
+    const modalContent = <Box className={classes.ModalContentContainer}>
+      <Typography variant='h3'>Enjoy your new playlist{playlistIds.length > 1 ? 's' : ''}!</Typography>
+      {playlistsCards}
+      <Button variant="contained" size="large" className={classes.Button} onClick={closeModal}>Continue Exploring</Button>
+    </Box>
 
     setModal({
       isVisible: true,
       content: modalContent
     })
-  }, [])
+  }, [classes])
 
   const executeProcess = useCallback(async () => {
     let targetArtists = [...spotifyData.artists];
@@ -527,25 +575,27 @@ const Loader = (props) => {
     setRecalculatedTracks,
     isLoading
   ])
-  
-  const startProccessBtn = props.isAuth
-  ? <Button onClick={initiateProcess}>Start Process</Button>
-  : <Button onClick={props.login}>Login to continue</Button>
 
   return (
-    <Container>
+    <Box className={classes.root}>
       { isLoading ? <ProgressBar progress={progress.total !== null ? (progress.current / progress.total * 100) : null} /> : null }
-      { startProccessBtn }
-      <Modal 
+      <Button 
+        className={classes.Button}
+        size="large"
+        variant="contained"
+        disabled={isAuth && !props.isSubmitEnabled}
+        onClick={isAuth ? initiateProcess : props.login}
+      >
+        {isAuth ? 'Start Process' : 'Login to Continue'}
+      </Button>
+      <Modal
+        className={classes.Modal}
         open={modal.isVisible} 
-        onClose={() => setModal({
-          isVisible: false,
-          content: <></>
-        })}
+        onClose={closeModal}
       >
         {modal.content}
       </Modal>
-    </Container>
+    </Box>
   );
 }
 
@@ -558,7 +608,8 @@ Loader.propTypes = {
   reenableConfigurator: PropTypes.func.isRequired,
   disableConfigurator: PropTypes.func.isRequired,
   setStepCompleted: PropTypes.func.isRequired,
-  login: PropTypes.func.isRequired
+  login: PropTypes.func.isRequired,
+  isSubmitEnabled: PropTypes.bool.isRequired
 }
 
 export default Loader;

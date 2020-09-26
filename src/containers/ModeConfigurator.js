@@ -2,14 +2,24 @@ import React, { useState, useEffect, useMemo } from 'react';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types';
 import Loader from './Loader';
-import { Box, MenuItem, FormControl, Select, Container, TextField, Typography, Stepper, Step, StepLabel, StepContent, makeStyles } from '@material-ui/core';
+import { MenuItem, FormControl, Select, TextField, Typography, Stepper, Step, StepLabel, StepContent, makeStyles } from '@material-ui/core';
 import ConfigSlider from './ConfigSlider';
 import processSteps from '../utility/processSteps';
 
 const useStyles = makeStyles({
-  FormControl: {
+  Header: {
+    textAlign: 'center'
+  },
+  Selector: {
+    bottom: '4px'
+  },
+  Textfield: {
     bottom: '5px',
-    minWidth: '300px'
+    maxWidth: '140px'
+  },
+  menuPaper: {
+    maxHeight: '350px',
+    maxWidth: '450px'
   }
 })
 
@@ -27,6 +37,8 @@ const ModeConfigurator = (props) => {
     newPlaylistName: `${document.title} Playlist`,
     selectedPlaylist: 0         // default is 0 (library)
   })
+
+  const [isSubmitEnabled, setIsSubmitEnabled] = useState(true);
 
   const steps = useMemo(() => {
     return Object.keys(processSteps).reduce((result, key) => {
@@ -73,6 +85,11 @@ const ModeConfigurator = (props) => {
   }, [mode, steps])
 
   const configValueChangedHandler = (type, value) => {
+    if (type === 'newPlaylistName') {
+      if (!(value === '') !== isSubmitEnabled) {
+        setIsSubmitEnabled(value !== '');
+      }
+    }
     setModeConfig(config => ({
         ...config,
         [type]: value
@@ -98,8 +115,13 @@ const ModeConfigurator = (props) => {
         }
         
         const playlistsSelector = (
-          <FormControl className={classes.FormControl}>
-            <Select labelId="playlistsSelect" value={modeConfig.selectedPlaylist} onChange={(event) => configValueChangedHandler('selectedPlaylist', event.target.value)}>
+          <FormControl className={classes.Selector}>
+            <Select 
+              labelId="playlistsSelect" 
+              value={modeConfig.selectedPlaylist} 
+              onChange={(event) => configValueChangedHandler('selectedPlaylist', event.target.value)}
+              MenuProps={{ classes: {paper: classes.menuPaper} }}
+            >
               <MenuItem value={0}>Library</MenuItem>
               { playlistItems }
             </Select>
@@ -118,7 +140,7 @@ const ModeConfigurator = (props) => {
         />
 
         return <Typography component={'div'}>
-          Then it will group those tracks by artists. And filter out artists with at least {artistThresholdParam} tracks saved (within selected playlist).
+          Then it will group those tracks by artists. And filter out all artists with at least {artistThresholdParam} track{modeConfig.artistTracksThreshold > 1 ? 's' : ''} saved (within selected playlist).
         </Typography>;
 
       case steps.FETCH_RELATED_ARTISTS.id:
@@ -145,7 +167,7 @@ const ModeConfigurator = (props) => {
         </Typography>;
 
       case steps.ADD_TRACKS_TO_PLAYLIST.id:
-        const playlistNameParam = <TextField className={classes.FormControl} 
+        const playlistNameParam = <TextField className={classes.Textfield} 
           value={modeConfig.newPlaylistName}
           onChange={(event) => configValueChangedHandler("newPlaylistName", event.target.value)}
         />
@@ -176,21 +198,17 @@ const ModeConfigurator = (props) => {
 
   return (
     <>    
-      <Container>
-        <Box>
-          <Typography variant="h4">HOW IT WORKS</Typography>
-          <Stepper nonLinear={true} orientation="vertical">
-            {
-              Object.keys(stepsToShow).map(stepKey => (
-                <Step key={stepKey} expanded={!isDisabled} active={false} completed={steps[stepKey].isCompleted}>
-                  <StepLabel>{steps[stepKey].title}</StepLabel>
-                  <StepContent>{getStepContent(stepKey)}</StepContent>
-                </Step>
-              ))
-            }
-          </Stepper>
-        </Box>
-      </Container>
+      <Typography variant="h4" className={classes.Header}>HOW IT WORKS</Typography>
+      <Stepper nonLinear={true} orientation="vertical">
+        {
+          Object.keys(stepsToShow).map(stepKey => (
+            <Step key={stepKey} expanded={!isDisabled} active={false} completed={steps[stepKey].isCompleted}>
+              <StepLabel>{steps[stepKey].title}</StepLabel>
+              <StepContent>{getStepContent(stepKey)}</StepContent>
+            </Step>
+          ))
+        }
+      </Stepper>
 
       <Loader 
         configData={modeConfig} 
@@ -202,6 +220,7 @@ const ModeConfigurator = (props) => {
         disableConfigurator={handleProcessStarted}
         setStepCompleted={(step) => setStepCompleted(step)}
         login={props.login}
+        isSubmitEnabled={isSubmitEnabled}
       />
     </>
   );

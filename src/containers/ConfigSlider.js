@@ -1,8 +1,21 @@
 import React, { useState } from 'react';
-import { Link, Popover, Slider } from '@material-ui/core';
+import { Link, makeStyles, Popover, Slider } from '@material-ui/core';
 import PropTypes from 'prop-types';
 
+const useStyles = makeStyles({
+  root: {
+    '&:hover': {
+      'cursor': 'pointer' 
+    }
+  },
+  SliderContainer: {
+    minWidth: '300px',
+    padding: '10px 30px'
+  }
+})
+
 const ConfigSlider = (props) => {
+  const classes = useStyles();
   const [anchorEl, setAnchorEl] = useState(null);
 
   const handleLinkClicked = (event) => {
@@ -14,7 +27,7 @@ const ConfigSlider = (props) => {
   }
 
   return (
-    <>
+    <span className={classes.root}>
       <Link onClick={handleLinkClicked}>
         {props.value}
       </Link>
@@ -31,11 +44,7 @@ const ConfigSlider = (props) => {
           horizontal: "center"
         }}
       >
-      <div style={{
-        minHeight: '40px',
-        minWidth: '300px',
-        padding: '0 30px'
-      }}>
+      <div className={classes.SliderContainer}>
         <Slider 
           step={1}
           marks
@@ -46,7 +55,7 @@ const ConfigSlider = (props) => {
         />
       </div>
       </Popover>
-    </>
+    </span>
   );
 }
 

@@ -12,16 +12,14 @@ const ProgressBar = (props) => {
   }
 
   return (
-    <Box display="flex" alignItems="center">
-      <Box width="100%" mr={1}>        
-        { bar }
-      </Box>
+    <Box>
+      { bar }
     </Box>
   );
 }
 
 ProgressBar.propTypes = {
-  progress: PropTypes.number.isRequired
+  progress: PropTypes.number
 }
 
 export default ProgressBar;
