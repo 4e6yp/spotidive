@@ -6,8 +6,9 @@ import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
 import { Typography, Box, Modal, Button, makeStyles } from '@material-ui/core';
 import CreatedPlaylistPaper from '../components/CreatedPlaylistPaper';
 import processSteps from '../utility/processSteps';
-import { allSettledRequests, synchFetchMultiplePages } from '../utility/Loader'
-import { spotifyDataActions, spotifyDataReducer } from '../utility/SpotifyReducer'
+import { allSettledRequests, synchFetchMultiplePages } from '../utility/Loader';
+import { spotifyDataActions, spotifyDataReducer } from '../utility/SpotifyReducer';
+import { progressBarActions, progressBarReducer } from '../utility/ProgressBarReducer';
 import ProgressBar from '../components/ProgressBar';
 
 axiosRetry(axios, {
@@ -99,23 +100,30 @@ const Loader = (props) => {
 
   const [spotifyUserId, setSpotifyUserId] = useState(null);
 
-  const [progress, setProgress] = useState({
+  const [progress, progressDispatch] = useReducer(progressBarReducer, {
+    stepPercent: 0,
     current: 0,
     total: 0
-  })
+  }) 
 
-  const setTotalProgress = (total) => {
-    setProgress({
-      current: 0,
+  const setTotalProgress = (total, stepPercent) => {
+    progressDispatch({
+      type: progressBarActions.SET_TOTAL_PROGRESS,
+      stepPercent: stepPercent,
       total: total
     })
   }
 
   const incrementProgress = () => {
-    setProgress(progress => ({
-      ...progress,
-      current: progress.current + 1,      
-    }))
+    progressDispatch({
+      type: progressBarActions.INCREMENT_PROGRESS      
+    })
+  }
+
+  const resetProgress = () => {
+    progressDispatch({
+      type: progressBarActions.RESET_PROGRESS
+    })
   }
 
   const [addedArtists, setAddedArtists] = useState([]);
@@ -204,8 +212,8 @@ const Loader = (props) => {
       playlistPack.forEach(tracksUris => {
         addTracksRequests.push(addTracksRequest(createdPlaylist.data.id, tracksUris));
       })
-      
-      setTotalProgress(addTracksRequests.length)
+
+      setTotalProgress(addTracksRequests.length, 13)
 
       await allSettledRequests(addTracksRequests);
       return createdPlaylist.data.id;
@@ -255,7 +263,7 @@ const Loader = (props) => {
       }
     })
 
-    setTotalProgress(requestsArray.length);
+    setTotalProgress(requestsArray.length, configData.viewedMode === modeTypes.DIVE_DEEPER ? 40 : 60);
 
     return await allSettledRequests(requestsArray);
   }, [configData, addedArtists, isTrackAlreadyAdded])
@@ -285,12 +293,11 @@ const Loader = (props) => {
 
     let requestsArray = artistsArr.map(artist => fetchRelatedArtistsReq(artist));
 
-    setTotalProgress(requestsArray.length);
+    setTotalProgress(requestsArray.length, 20);
     return await allSettledRequests(requestsArray);
   }, [configData, spotifyData.artists])
 
   const fetchPlaylistTracks = useCallback(async (playlistId) => {
-    setTotalProgress(null);
     const targetUrl = playlistId === 0 ? '/me/tracks' : `/playlists/${playlistId}/tracks`;
 
     const fetchedTracks = await synchFetchMultiplePages(targetUrl, 50, items => {
@@ -372,7 +379,7 @@ const Loader = (props) => {
     }
 
     const requestsArr = playlistIds.map(id => playlistRequest(id));
-    setTotalProgress(requestsArr.length);
+    setTotalProgress(requestsArr.length, 2);
 
     const playlists = await allSettledRequests(requestsArr);
 
@@ -401,11 +408,14 @@ const Loader = (props) => {
   }, [classes])
 
   const executeProcess = useCallback(async () => {
+    resetProgress();
+    setTotalProgress(1, 25);
     let targetArtists = [...spotifyData.artists];
 
     if (configData.selectedPlaylist !== 0) {
       targetArtists = (await fetchPlaylistTracks(configData.selectedPlaylist)).artists;
     }
+    incrementProgress();
     setStepCompleted(processSteps.FETCH_PLAYLIST_TRACKS.id);
 
     // artists array is already sorted, so we remove all elements below the threshold
@@ -578,7 +588,8 @@ const Loader = (props) => {
 
   return (
     <Box className={classes.root}>
-      { isLoading ? <ProgressBar progress={progress.total !== null ? (progress.current / progress.total * 100) : null} /> : null }
+      {/* { isLoading ? <ProgressBar progress={progress.total !== null ? (progress.current / progress.total * 100) : null} /> : null } */}
+      { isLoading ? <ProgressBar progress={progress.current * 100} /> : null }
       <Button 
         className={classes.Button}
         size="large"
