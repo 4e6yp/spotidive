@@ -91,6 +91,9 @@ const App = () => {
   };
 
   const showNewError = useCallback((text = 'Error occured, please try again') => {
+    if (typeof text !== 'string' && text !== null) {
+      text = 'Error occured, please try again'
+    }
     setMessage({text: text, type: 'error'})
   }, [setMessage])
 

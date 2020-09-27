@@ -3,13 +3,12 @@ import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types'; 
 import axios from '../axios-spotifyClient';
 import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
-import { Typography, Box, Modal, Button, makeStyles } from '@material-ui/core';
+import { Typography, Box, Modal, Button, makeStyles, LinearProgress } from '@material-ui/core';
 import CreatedPlaylistPaper from '../components/CreatedPlaylistPaper';
 import processSteps from '../utility/processSteps';
 import { allSettledRequests, synchFetchMultiplePages } from '../utility/Loader';
 import { spotifyDataActions, spotifyDataReducer } from '../utility/SpotifyReducer';
 import { progressBarActions, progressBarReducer } from '../utility/ProgressBarReducer';
-import ProgressBar from '../components/ProgressBar';
 
 axiosRetry(axios, {
   retries: 5,
@@ -300,7 +299,14 @@ const Loader = (props) => {
   const fetchPlaylistTracks = useCallback(async (playlistId) => {
     const targetUrl = playlistId === 0 ? '/me/tracks' : `/playlists/${playlistId}/tracks`;
 
+    let totalPages = await axios.get(`${targetUrl}?market=from_token&limit=${1}`);
+    totalPages = Math.ceil(totalPages.data.total / 50) + 1;
+
+    resetProgress();
+    setTotalProgress(totalPages, 25);
+
     const fetchedTracks = await synchFetchMultiplePages(targetUrl, 50, items => {
+      incrementProgress();
       let newTracks = [];
       items.forEach(track => {
         track = track.track
@@ -408,14 +414,16 @@ const Loader = (props) => {
   }, [classes])
 
   const executeProcess = useCallback(async () => {
-    resetProgress();
-    setTotalProgress(1, 25);
     let targetArtists = [...spotifyData.artists];
 
     if (configData.selectedPlaylist !== 0) {
       targetArtists = (await fetchPlaylistTracks(configData.selectedPlaylist)).artists;
+    } else {
+      // if default playlist is already fetched - we will just reset progress to 25%, which will be seamless
+      resetProgress();
+      setTotalProgress(1, 25);
+      incrementProgress();
     }
-    incrementProgress();
     setStepCompleted(processSteps.FETCH_PLAYLIST_TRACKS.id);
 
     // artists array is already sorted, so we remove all elements below the threshold
@@ -463,6 +471,13 @@ const Loader = (props) => {
     showPlaylistsResultModal
   ])
 
+  const handleProcessFinished = useCallback(() => {
+    setIsLoading(false);
+    resetProgress();
+    setAddedArtists([]);
+    reenableConfigurator();
+  }, [reenableConfigurator])
+
   const initiateProcess = useCallback(() => {
     if (!isAuth || isLoading) { return }
 
@@ -478,22 +493,20 @@ const Loader = (props) => {
 
     executeProcess()
       .finally(() => {
-        setIsLoading(false);
-        setAddedArtists([]);
-        reenableConfigurator();
+        handleProcessFinished();
       })
       .catch(error => {
-        showError(error)
+        showError(error);     
       })
 
   }, [
       showError, 
       isAuth, 
       disableConfigurator,
-      reenableConfigurator,
       isLoading,
       executeProcess,
       spotifyData.fetch.finished,
+      handleProcessFinished
     ])
 
   // Get user info
@@ -548,15 +561,13 @@ const Loader = (props) => {
       spotifyDataDispatch({type: spotifyDataActions.FINISHED_PENDING});      
       executeProcess()
         .finally(() => {
-          setIsLoading(false);
-          setAddedArtists([]);
-          reenableConfigurator();
+          handleProcessFinished();
         })
         .catch(error => {
-          showError(error)
+          showError(error);
         })
     }
-  }, [spotifyData.fetch, executeProcess, reenableConfigurator, showError])
+  }, [spotifyData.fetch, executeProcess, reenableConfigurator, showError, handleProcessFinished])
 
   // Recalculate tracks count with each config change
   useEffect(() => {
@@ -588,13 +599,12 @@ const Loader = (props) => {
 
   return (
     <Box className={classes.root}>
-      {/* { isLoading ? <ProgressBar progress={progress.total !== null ? (progress.current / progress.total * 100) : null} /> : null } */}
-      { isLoading ? <ProgressBar progress={progress.current * 100} /> : null }
+      { isLoading ? <LinearProgress variant="determinate" value={progress.current * 100} /> : null }
       <Button 
         className={classes.Button}
         size="large"
         variant="contained"
-        disabled={isAuth && !props.isSubmitEnabled}
+        disabled={(isAuth && !props.isSubmitEnabled) || isLoading}
         onClick={isAuth ? initiateProcess : props.login}
       >
         {isAuth ? 'Start Process' : 'Login to Continue'}
