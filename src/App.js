@@ -97,8 +97,16 @@ const App = () => {
     setMessage({text: text, type: 'error'})
   }, [setMessage])
 
+  const handleMessageClosed = (_, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+
+    showNewError(null);
+  }
+
   return (
-    <Container maxWidth="md" component="main">
+    <Container maxWidth="md" component="main" style={{padding: '20px'}}>
       <Typography component="h1" variant="h2" align="center" color="textPrimary">
         Welcome!
       </Typography>
@@ -116,6 +124,7 @@ const App = () => {
         <Alert 
           variant='filled'
           severity={message.type}
+          onClose={handleMessageClosed}
         >
           { message.text }
         </Alert>

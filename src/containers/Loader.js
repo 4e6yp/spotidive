@@ -3,7 +3,7 @@ import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types'; 
 import axios from '../axios-spotifyClient';
 import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
-import { Typography, Box, Modal, Button, makeStyles, LinearProgress } from '@material-ui/core';
+import { Typography, Box, Button, makeStyles, LinearProgress, Dialog, Zoom, DialogActions } from '@material-ui/core';
 import CreatedPlaylistPaper from '../components/CreatedPlaylistPaper';
 import processSteps from '../utility/processSteps';
 import { allSettledRequests, synchFetchMultiplePages } from '../utility/Loader';
@@ -56,23 +56,25 @@ const useStyles = makeStyles({
     marginTop: '20px'
   },
   Modal: {
-    backdropFilter: 'blur(5px)',
-    display:'flex',
-    alignItems:'center',
-    justifyContent:'center'
+    backdropFilter: 'blur(5px)'
   },
   ModalContentContainer: {
     textAlign: 'center',
-    minWidth: '60%',
     backgroundColor: 'rgba(1, 1, 1, 0.3)',
     padding: '40px'
   },
   ModalPlaylists: {
     display: 'flex',
     justifyContent: 'space-evenly',
-    paddingTop: '70px'
+    flexWrap: 'wrap',
+    paddingTop: '30px'
+  },
+  ModalActions: {
+    justifyContent: 'center'
   }
 });
+
+const ModalTransition = React.forwardRef((props, ref) => <Zoom ref={ref} {...props} />);
 
 const Loader = (props) => {
   const classes = useStyles();
@@ -130,23 +132,26 @@ const Loader = (props) => {
   const closeModal = () => {
     setModal({
       isVisible: false,
-      content: <></>
+      content: null
     })
   }
 
   const [modal, setModal] = useState({
     isVisible: false,
-    content: <></>
-    // <Box className={classes.ModalContentContainer}>
-    //   <Typography variant='h3'>Enjoy your new playlist!</Typography>
-    //   <div className={classes.ModalPlaylists}>
-    //     <CreatedPlaylistPaper key={343} name={'Second playlist'} image={'https://via.placeholder.com/500'} uri={'test'}/>
-    //     <CreatedPlaylistPaper key={123} name={'Test name'} image={'https://via.placeholder.com/500'} uri={'test'}/>
-    //     <CreatedPlaylistPaper key={345} name={'Second playlist'} image={'https://via.placeholder.com/500'} uri={'test'}/>
-    //   </div>
-    //   <Button variant="contained" size="large" className={classes.Button} onClick={closeModal}>Continue Exploring</Button>
-    // </Box>
+    content: null
   });
+
+  // const [modal, setModal] = useState({
+  //   isVisible: false,
+  //   content: <Box className={classes.ModalContentContainer}>
+  //     <Typography variant='h4'>Enjoy your new playlist!</Typography>
+  //     <div className={classes.ModalPlaylists}>
+  //       <CreatedPlaylistPaper key={343} name={'Very long playlist name'} image={'https://via.placeholder.com/640'} uri={'test'} webUrl={'test2'}/>
+  //       <CreatedPlaylistPaper key={123} name={'Test name'} image={'https://via.placeholder.com/640'} uri={'test'} webUrl={'test2'}/>
+  //       <CreatedPlaylistPaper key={345} name={'Second playlist'} image={'https://via.placeholder.com/640'} uri={'test'} webUrl={'test2'}/>
+  //     </div>
+  //   </Box>
+  // });
   
   const [isLoading, setIsLoading] = useState(false);
 
@@ -380,7 +385,7 @@ const Loader = (props) => {
         image: playlistData.images[0] ? playlistData.images[0].url : null,
         name: playlistData.name,
         uri: playlistData.uri,
-        href: playlistData.href
+        webUrl: playlistData.external_urls.spotify
       }
     }
 
@@ -393,7 +398,7 @@ const Loader = (props) => {
 
     if (playlists.length) {
       playlistsCards = playlists.map(p => (
-        <CreatedPlaylistPaper key={p.id} name={p.name} image={p.image} uri={p.uri}/>
+        <CreatedPlaylistPaper key={p.id} name={p.name} image={p.image} uri={p.uri} webUrl={p.webUrl}/>
       ))
 
       playlistsCards = <div className={classes.ModalPlaylists}>
@@ -404,7 +409,6 @@ const Loader = (props) => {
     const modalContent = <Box className={classes.ModalContentContainer}>
       <Typography variant='h3'>Enjoy your new playlist{playlistIds.length > 1 ? 's' : ''}!</Typography>
       {playlistsCards}
-      <Button variant="contained" size="large" className={classes.Button} onClick={closeModal}>Continue Exploring</Button>
     </Box>
 
     setModal({
@@ -532,8 +536,11 @@ const Loader = (props) => {
       }))
     ).then(playlists => {
       setPlaylists(playlists)
-    });
-  }, [setPlaylists, isAuth])
+    })
+    .catch(() => {
+      showError('Error occured while fetching playlists, please try again');
+    })
+  }, [setPlaylists, isAuth, showError])
 
   // Get all tracks from the library
   useEffect(() => {
@@ -609,13 +616,19 @@ const Loader = (props) => {
       >
         {isAuth ? 'Start Process' : 'Login to Continue'}
       </Button>
-      <Modal
+      <Dialog
         className={classes.Modal}
         open={modal.isVisible} 
         onClose={closeModal}
+        fullWidth
+        maxWidth='md'
+        TransitionComponent={ModalTransition}
       >
         {modal.content}
-      </Modal>
+        <DialogActions className={classes.ModalActions}>
+          <Button variant="text" size="large" onClick={closeModal}>Continue Exploring</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
