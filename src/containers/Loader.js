@@ -331,25 +331,25 @@ const Loader = (props) => {
       return newTracks;
     });
 
-    let artists = {};
+    let artists = new Map();
 
     fetchedTracks.forEach(t => {
       t.artists.forEach(a => {
-        const foundArtist = artists[a.id];
+        const foundArtist = artists.get(a.id);
 
         if (foundArtist) {
           foundArtist.ctr++;
         } else {
-          artists[a.id] = {
+          artists.set(a.id, {
             name: a.name,
             ctr: 1
-          }
+          })
         }
       })
     })
 
     // sort artists by ctr DESC
-    artists = Object.entries(artists).sort((a, b) => {
+    artists = [...artists.entries()].sort((a, b) => {
       return b[1].ctr - a[1].ctr
     }).reduce((acc, cur) => {
       const artist = {
@@ -520,8 +520,8 @@ const Loader = (props) => {
       .then(res => {
         setSpotifyUserId(res.data.id);
       })
-      .catch(() => {
-        showError()
+      .catch((error) => {
+        showError(error)
       })
   }, [showError, isAuth])
 
@@ -537,8 +537,8 @@ const Loader = (props) => {
     ).then(playlists => {
       setPlaylists(playlists)
     })
-    .catch(() => {
-      showError('Error occured while fetching playlists, please try again');
+    .catch((error) => {
+      showError(error);
     })
   }, [setPlaylists, isAuth, showError])
 
@@ -557,8 +557,8 @@ const Loader = (props) => {
           artists: playlistData.artists
         })
       })
-      .catch(() => {
-        showError();
+      .catch((error) => {
+        showError(error);
       })
   }, [fetchPlaylistTracks, showError, isAuth, spotifyData.fetch.finished])
 
