@@ -169,7 +169,7 @@ const ModeConfigurator = (props) => {
           onChange={(event) => configValueChangedHandler("newPlaylistName", event.target.value)}
         />
         return <Typography component={'div'}>
-          Finally, it will add all selected tracks {calculatedTracksCount ? `(about ${calculatedTracksCount} at max) ` : ''}to the newely created playlist {playlistNameParam}
+          Finally, it will add all selected tracks {calculatedTracksCount ? `(about ${calculatedTracksCount} at max) ` : ''}to the newly created playlist {playlistNameParam}
         </Typography>;
 
       default:
