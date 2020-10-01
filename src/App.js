@@ -3,7 +3,7 @@ import ModeSwitcher from './components/ModeSwitcher/ModeSwitcher';
 import * as modeTypes from './utility/modeTypes';
 import axios from './axios-spotifyClient';
 import queryString from 'query-string';
-import { Container, Box, Typography, Snackbar } from '@material-ui/core';
+import { Container, Box, Typography, Snackbar, Slide, Zoom } from '@material-ui/core';
 import { Alert } from '@material-ui/lab';
 import ModeConfigurator from './containers/ModeConfigurator';
 
@@ -106,16 +106,49 @@ const App = () => {
     showNewError(null);
   }
 
+  // const getModeConfig = () => {
+  //   if (!viewedMode) {
+  //     return null;
+  //   }
+
+  //   const Wrapper = (props) => {
+  //     switch (viewedMode) {
+  //       case modeTypes.DIVE_DEEPER:
+  //         return (
+  //           <Slide in direction="up" timeout={1000}> 
+  //             <Box> 
+  //               {props.children}
+  //             </Box> 
+  //           </Slide>
+  //         )
+          
+  //       case modeTypes.LOOK_CLOSER:
+  //         return (
+  //           <Zoom in timeout={1000}> 
+  //             <Box> 
+  //               {props.children}
+  //             </Box> 
+  //           </Zoom>
+  //         )
+  
+  //       default:
+  //         return props.children;
+  //     }
+  //   };
+
+
+  //   return <Wrapper>
+  //     <ModeConfigurator mode={viewedMode} showError={showNewError} isAuth={token !== null} login={loginHandler}/>
+  //   </Wrapper>
+  // }
+
   return (
     <Container maxWidth="md" component="main" style={{padding: '20px'}}>
-      <Typography component="h1" variant="h2" align="center" color="textPrimary">
+      <Typography component="h3" variant="h3" align="center" color="textPrimary">
         Welcome!
       </Typography>
-      <Typography variant="h5" align="center" color="textSecondary" component="p">
-        Wanna get to know better all of your artists and discover new ones? You are at the right place.
-      </Typography>
       <Box>
-        <ModeSwitcher changeMode={setViewedMode} isAuth={token !== null} login={loginHandler}/>
+        <ModeSwitcher changeMode={setViewedMode} isAuth={token !== null} login={loginHandler} viewedMode={viewedMode} />
         <ModeConfigurator mode={viewedMode} showError={showNewError} isAuth={token !== null} login={loginHandler}/>
       </Box>
       <Snackbar 

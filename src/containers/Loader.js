@@ -614,7 +614,7 @@ const Loader = (props) => {
         disabled={(isAuth && !props.isSubmitEnabled) || isLoading}
         onClick={isAuth ? initiateProcess : props.login}
       >
-        {isAuth ? 'Start Process' : 'Login to Continue'}
+        {isAuth ? 'Start Process' : 'Login to Proceed'}
       </Button>
       <Dialog
         className={classes.Modal}

@@ -7,9 +7,6 @@ import ConfigSlider from './ConfigSlider';
 import processSteps from '../utility/processSteps';
 
 const useStyles = makeStyles({
-  Header: {
-    textAlign: 'center'
-  },
   Selector: {
     bottom: '4px'
   },
@@ -198,7 +195,7 @@ const ModeConfigurator = (props) => {
 
   return (
     <>    
-      <Typography variant="h4" className={classes.Header}>HOW IT WORKS</Typography>
+      <Typography variant="h4" align="center">HOW IT WORKS</Typography>
       <Stepper nonLinear={true} orientation="vertical">
         {
           Object.keys(stepsToShow).map(stepKey => (
