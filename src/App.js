@@ -1,21 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import ModeSwitcher from './components/ModeSwitcher/ModeSwitcher';
-import * as modeTypes from './utility/modeTypes';
+import React, { useState, useEffect, useCallback, useReducer } from 'react';
+import ModeSwitcher from './containers/ModeSwitcher/ModeSwitcher';
 import axios from './axios-spotifyClient';
 import queryString from 'query-string';
-import { Container, Box, Typography, Snackbar, Slide, Zoom } from '@material-ui/core';
+import { Container, Box, Typography, Snackbar } from '@material-ui/core';
 import { Alert } from '@material-ui/lab';
-import ModeConfigurator from './containers/ModeConfigurator';
 import GithubCorner from 'react-github-corner';
+import {messageReducer, messageActions } from './reducers/MessageReducer'
 
 const App = () => {
   const [token, setToken] = useState(null);
-  const [viewedMode, setViewedMode] = useState(modeTypes.LOOK_CLOSER);
 
-  const [message, setMessage] = useState({
+  // const [message, setMessage] = useState({
+  //   text: null,
+  //   type: 'error'
+  // });
+
+  const [message, setMessage] = useReducer(messageReducer, {
+    isVisible: false,
     text: null,
-    type: 'error'
-  });
+    alertType: 'success'
+  })
 
   const checkSavedToken = () => {
     const expirationDate = new Date(localStorage.getItem('expirationDate'));
@@ -31,6 +35,7 @@ const App = () => {
       axios.defaults.headers = {
         'Authorization': 'Bearer ' + newToken
       };
+      setMessage({type: messageActions.SHOW_SUCCESS_MESSAGE, text: 'Successfully authenticated in Spotify!'});
     }
   }
 
@@ -38,10 +43,26 @@ const App = () => {
     if (error.response.status === 401 || error.response.status === 403) {
       setToken(null);
       localStorage.clear();
-      setMessage({text: 'Authentication expired, please relogin and try again', type: 'error'});
+      setMessage('Authentication expired, please relogin and try again');
     }
     return Promise.reject(error);
   })
+
+  const showNewError = useCallback((text = 'Error occured, please try again') => {
+    if (typeof text !== 'string' && text !== null) {
+      console.log(text);
+      text = 'Error occured, please try again';
+    }
+    setMessage({type: messageActions.SHOW_ERROR_MESSAGE, text: text});
+  }, [])
+
+  const handleMessageClosed = (reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+
+    setMessage({type: messageActions.HIDE_MESSAGE});
+  }
 
   // Handle auth and callback 
   useEffect(() => {
@@ -62,13 +83,13 @@ const App = () => {
         }
       } 
       else {
-        setMessage({text: 'Authentication in Spotify failed, please try again', type: 'error'});        
+        showNewError('Authentication in Spotify failed, please try again');        
       }
     }
     else {
       checkSavedToken();
     }
-  }, [])
+  }, [showNewError])
 
   const loginHandler = () => {
     if (token) {
@@ -91,80 +112,29 @@ const App = () => {
     window.location.href = 'https://accounts.spotify.com/authorize?'+query;
   };
 
-  const showNewError = useCallback((text = 'Error occured, please try again') => {
-    if (typeof text !== 'string' && text !== null) {
-      console.log(text);
-      text = 'Error occured, please try again';
-    }
-    setMessage({text: text, type: 'error'})
-  }, [setMessage])
-
-  const handleMessageClosed = (_, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-
-    showNewError(null);
-  }
-
-  // const getModeConfig = () => {
-  //   if (!viewedMode) {
-  //     return null;
-  //   }
-
-  //   const Wrapper = (props) => {
-  //     switch (viewedMode) {
-  //       case modeTypes.DIVE_DEEPER:
-  //         return (
-  //           <Slide in direction="up" timeout={1000}> 
-  //             <Box> 
-  //               {props.children}
-  //             </Box> 
-  //           </Slide>
-  //         )
-          
-  //       case modeTypes.LOOK_CLOSER:
-  //         return (
-  //           <Zoom in timeout={1000}> 
-  //             <Box> 
-  //               {props.children}
-  //             </Box> 
-  //           </Zoom>
-  //         )
-  
-  //       default:
-  //         return props.children;
-  //     }
-  //   };
-
-
-  //   return <Wrapper>
-  //     <ModeConfigurator mode={viewedMode} showError={showNewError} isAuth={token !== null} login={loginHandler}/>
-  //   </Wrapper>
-  // }
-
   return (
     <Container maxWidth="md" component="main" style={{padding: '20px'}}>
       <Typography component="h3" variant="h3" align="center" color="textPrimary">
         Welcome!
       </Typography>
       <Box>
-        <ModeSwitcher changeMode={setViewedMode} isAuth={token !== null} login={loginHandler} viewedMode={viewedMode} />
-        <ModeConfigurator mode={viewedMode} showError={showNewError} isAuth={token !== null} login={loginHandler}/>
+        <ModeSwitcher isAuth={token !== null} login={loginHandler} showError={showNewError}/>
       </Box>
       <Snackbar 
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        open={!!message.text}
+        open={message.isVisible}
+        autoHideDuration={ message.alertType === 'success' ? 3000 : null }
+        onClose={(_, reason) => handleMessageClosed(reason)}
       >
         <Alert 
           variant='filled'
-          severity={message.type}
+          severity={message.alertType}
           onClose={handleMessageClosed}
         >
           { message.text }
         </Alert>
       </Snackbar>
-      <GithubCorner href="https://github.com/4e6yp/spotidive" />
+      <GithubCorner href="https://github.com/4e6yp/spotidive" target="_blank"/>
     </Container>
   );
 }

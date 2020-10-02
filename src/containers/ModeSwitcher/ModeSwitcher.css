@@ -4,6 +4,10 @@
   display: flex;
 }
 
+.accordion.disabled {
+  pointer-events: none;
+}
+
 .accordion:hover {
   cursor: pointer;
 }
@@ -64,7 +68,6 @@
 }
 
 .accordion p {
-  /* height: 70%; */
   vertical-align: middle;
   font-size: large;
 }
@@ -111,6 +114,10 @@
   .accordion-item h1 {
     margin: 0;
     text-align: center;
+    top: 0;
+  }
+
+  .accordion-item:hover h1 {
     top: 0;
   }
     

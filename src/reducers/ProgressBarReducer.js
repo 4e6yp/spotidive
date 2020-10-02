@@ -35,6 +35,6 @@ export const progressBarReducer = (state, action) => {
       }
   
     default:
-      return state;
+      throw Error(`Unknown action type "${action.type}"`);
   }
 }

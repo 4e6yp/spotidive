@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Typography } from '@material-ui/core';
 import * as modeTypes from '../../utility/modeTypes';
 import './ModeSwitcher.css';
 import PropTypes from 'prop-types';
+import ModeConfigurator from '../ModeConfigurator';
 
 const ModeSwitcher = (props) => {
+  const [viewedMode, setViewedMode] = useState(modeTypes.LOOK_CLOSER); 
+  const [isLoaderBusy, setLoaderBusy] = useState(false); 
+
   const modes = [
     modeTypes.LOOK_CLOSER,
     modeTypes.DIVE_DEEPER,
@@ -12,7 +16,7 @@ const ModeSwitcher = (props) => {
 
   const getModeInfo = (mode) => {
     const result = {
-      action: () => props.changeMode(mode),
+      action: () => setViewedMode(mode),
       title: '',
       desc: ''
     }
@@ -38,7 +42,7 @@ const ModeSwitcher = (props) => {
   const modesElements = modes.map((m, i) => {
     const mode = getModeInfo(m);
     return (
-      <div className={`accordion-item ${props.viewedMode === m ? 'selected-mode' : ''}`} key={i} onClick={mode.action}>
+      <div className={`accordion-item ${viewedMode === m ? 'selected-mode' : ''}`} key={i} onClick={mode.action}>
         <h1>{mode.title}</h1>
         <div className="accordion-item-content">
           <p>{mode.desc}</p>
@@ -55,18 +59,24 @@ const ModeSwitcher = (props) => {
       <Typography variant="h6" align="center" color="textSecondary" component="p">
         Just select any mode and follow along.
       </Typography>
-      <div className="accordion">
+      <div className={`accordion ${isLoaderBusy ? 'disabled' : ''}`}>
         { modesElements }
       </div>
+      <ModeConfigurator 
+        mode={viewedMode} 
+        showError={props.showError} 
+        isAuth={props.isAuth}
+        login={props.login}
+        handleIsLoadingChanged={(isBusy) => setLoaderBusy(isBusy)}
+      />
     </>
   );
 }
 
 ModeSwitcher.propTypes = {
   isAuth: PropTypes.bool.isRequired,
-  changeMode: PropTypes.func.isRequired,
-  login: PropTypes.func.isRequired,
-  viewedMode: PropTypes.string
+  showError: PropTypes.func.isRequired,
+  login: PropTypes.func.isRequired
 }
 
 export default ModeSwitcher;

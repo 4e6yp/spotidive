@@ -7,8 +7,8 @@ import { Typography, Box, Button, makeStyles, LinearProgress, Dialog, Zoom, Dial
 import CreatedPlaylistPaper from '../components/CreatedPlaylistPaper';
 import processSteps from '../utility/processSteps';
 import { allSettledRequests, synchFetchMultiplePages } from '../utility/Loader';
-import { spotifyDataActions, spotifyDataReducer } from '../utility/SpotifyReducer';
-import { progressBarActions, progressBarReducer } from '../utility/ProgressBarReducer';
+import { spotifyDataActions, spotifyDataReducer } from '../reducers/SpotifyReducer';
+import { progressBarActions, progressBarReducer } from '../reducers/ProgressBarReducer';
 
 axiosRetry(axios, {
   retries: 5,

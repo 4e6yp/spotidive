@@ -31,7 +31,7 @@ const useStyles = makeStyles({
 const ModeConfigurator = (props) => {
   const classes = useStyles();
 
-  const { showError, mode } = props;
+  const { showError, mode, handleIsLoadingChanged } = props;
   const [playlists, setPlaylists] = useState([]);
 
   const [modeConfig, setModeConfig] = useState({
@@ -188,10 +188,12 @@ const ModeConfigurator = (props) => {
 
   const handleProcessStarted = () => {
     setIsDisabled(true);
+    handleIsLoadingChanged(true);
   }
 
   const handleProcessCompleted = () => {
     setIsDisabled(false);
+    handleIsLoadingChanged(false);
     
     setStepsToShow(steps => {
       const newSteps = {...steps};
@@ -236,7 +238,8 @@ ModeConfigurator.propTypes = {
   mode: PropTypes.oneOf(Object.values(modeTypes)).isRequired,
   showError: PropTypes.func.isRequired,
   isAuth: PropTypes.bool.isRequired,
-  login: PropTypes.func.isRequired
+  login: PropTypes.func.isRequired,
+  handleIsLoadingChanged: PropTypes.func.isRequired
 }
 
 export default ModeConfigurator;

@@ -35,6 +35,6 @@ export const spotifyDataReducer = (state, action) => {
       }
   
     default:
-      return state;
+      throw Error(`Unknown action type "${action.type}"`);
   }
 }
