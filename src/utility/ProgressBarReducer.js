@@ -15,13 +15,13 @@ export const progressBarReducer = (state, action) => {
     
     case progressBarActions.INCREMENT_PROGRESS:
       const newProgress = state.current + ((1 / state.total) * (state.stepPercent / 100));
-      console.log(`
-        ======================================
-        Current: ${state.current}
-        Total: ${state.total}
-        StepPercent: ${state.stepPercent}
-        New progress: ${newProgress}        
-      `)
+      // console.log(`
+      //   ======================================
+      //   Current: ${state.current}
+      //   Total: ${state.total}
+      //   StepPercent: ${state.stepPercent}
+      //   New progress: ${newProgress}        
+      // `)
       return {
         ...state,
         current: newProgress

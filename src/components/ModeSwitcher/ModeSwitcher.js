@@ -49,8 +49,11 @@ const ModeSwitcher = (props) => {
 
   return (
     <>
-      <Typography variant="h5" align="center" color="textSecondary" component="p">
-        Want to get to know better all of your artists and discover new ones? Then just <strong>select mode</strong> and follow anong.
+      <Typography variant="h6" align="center" color="textSecondary" component="p">
+        Want to get to know better all of your artists and discover new ones?
+      </Typography>
+      <Typography variant="h6" align="center" color="textSecondary" component="p">
+        Just select any mode and follow along.
       </Typography>
       <div className="accordion">
         { modesElements }

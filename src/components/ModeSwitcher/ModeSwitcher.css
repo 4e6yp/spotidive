@@ -1,5 +1,5 @@
 .accordion {
-  margin: 40px auto;
+  margin: 20px auto;
   width: 70%;
   display: flex;
 }
@@ -23,7 +23,7 @@
 
 
 .accordion-item {
-  height: 300px;
+  height: 250px;
   width: 50%;
   text-align: center;
   padding: 20px;
@@ -59,7 +59,7 @@
 }
 
 .accordion-item:hover h1 {
-  top: 40px;
+  top: 20px;
   transition: top .25s;
 }
 

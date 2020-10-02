@@ -5,14 +5,22 @@ import Loader from './Loader';
 import { MenuItem, FormControl, Select, TextField, Typography, Stepper, Step, StepLabel, StepContent, makeStyles } from '@material-ui/core';
 import ConfigSlider from './ConfigSlider';
 import processSteps from '../utility/processSteps';
+import theme from '../theme';
 
 const useStyles = makeStyles({
   Selector: {
-    bottom: '4px'
+    bottom: '4px',
+    maxWidth: '300px'
+  },
+  SelectorLabel: {
+    color: theme.palette.primary.main
   },
   Textfield: {
     bottom: '5px',
-    maxWidth: '140px'
+    maxWidth: '140px',
+    '& input': {
+      color: theme.palette.primary.main
+    }
   },
   menuPaper: {
     maxHeight: '350px',
@@ -118,6 +126,7 @@ const ModeConfigurator = (props) => {
               value={modeConfig.selectedPlaylist} 
               onChange={(event) => configValueChangedHandler('selectedPlaylist', event.target.value)}
               MenuProps={{ classes: {paper: classes.menuPaper} }}
+              classes={{select: classes.SelectorLabel}}
             >
               <MenuItem value={0}>Library</MenuItem>
               { playlistItems }

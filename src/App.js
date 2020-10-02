@@ -6,6 +6,7 @@ import queryString from 'query-string';
 import { Container, Box, Typography, Snackbar, Slide, Zoom } from '@material-ui/core';
 import { Alert } from '@material-ui/lab';
 import ModeConfigurator from './containers/ModeConfigurator';
+import GithubCorner from 'react-github-corner';
 
 const App = () => {
   const [token, setToken] = useState(null);
@@ -163,6 +164,7 @@ const App = () => {
           { message.text }
         </Alert>
       </Snackbar>
+      <GithubCorner href="https://github.com/4e6yp/spotidive" />
     </Container>
   );
 }
