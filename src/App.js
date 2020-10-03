@@ -113,7 +113,7 @@ const App = () => {
   };
 
   return (
-    <Container maxWidth="md" component="main" style={{padding: '20px'}}>
+    <Container maxWidth="md" component="main" style={{padding: '5px'}}>
       <Typography component="h3" variant="h3" align="center" color="textPrimary">
         Welcome!
       </Typography>
