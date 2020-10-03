@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useReducer } from 'react';
 import ModeSwitcher from './containers/ModeSwitcher/ModeSwitcher';
 import axios from './axios-spotifyClient';
 import queryString from 'query-string';
-import { Container, Box, Typography,  } from '@material-ui/core';
+import { Container, Box, Typography } from '@material-ui/core';
 import Snackbar from '@material-ui/core/Snackbar';
 import MuiAlert from '@material-ui/core/Alert';
 import GithubCorner from 'react-github-corner';
@@ -43,7 +43,7 @@ const App = () => {
     if (error.response.status === 401 || error.response.status === 403) {
       setToken(null);
       localStorage.clear();
-      setMessage('Authentication expired, please relogin and try again');
+      showNewError('Authentication expired, please relogin and try again');
     }
     return Promise.reject(error);
   })

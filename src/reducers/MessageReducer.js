@@ -15,6 +15,10 @@ export const messageReducer = (state, action) => {
       }
     
     case messageActions.SHOW_ERROR_MESSAGE:
+      if (state.text === action.text && state.isVisible && state.alertType === 'error') {
+        return state;
+      }
+      
       return {
         ...state,
         isVisible: true,

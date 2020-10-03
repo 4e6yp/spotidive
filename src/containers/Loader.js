@@ -167,6 +167,9 @@ const Loader = (props) => {
   }, [spotifyData.tracks])
 
   const addTracksToPlaylist = useCallback(async (tracks) => {
+    if (!tracks.length) {
+      return Promise.reject('No new tracks found with the current configuration! Try to adjust some values');
+    }
     const addLimit = 100;
 
     const splitArrayIntoPacks = (data, itemsPerPack) => {
@@ -234,7 +237,7 @@ const Loader = (props) => {
 
   const fetchArtistsTopTracks = useCallback(async (artistsArr) => {
     if (!artistsArr.length) {
-      return [];
+      return Promise.reject('No artists found with the current configuration! Try to adjust some values');
     }
 
     const fetchTopTracksReq = async (artist) => {
@@ -274,7 +277,7 @@ const Loader = (props) => {
 
   const fetchRelatedArtists = useCallback(async (artistsArr) => {
     if (!artistsArr.length) {
-      return [];
+      return Promise.reject('No related artists found with the current configuration! Try to adjust some values');
     }
 
     const fetchRelatedArtistsReq = async (artist) => {
@@ -375,6 +378,10 @@ const Loader = (props) => {
   }, [isTrackAlreadyAdded])
 
   const showPlaylistsResultModal = useCallback(async (playlistIds) => {
+    if (!playlistIds.length) {
+      return Promise.reject(`Error occured while creating playlist. Please try again`);
+    }
+
     const playlistRequest = async (id) => {
       let playlistData = await axios.get(`/playlists/${id}`);
       incrementProgress();
@@ -443,10 +450,6 @@ const Loader = (props) => {
     targetArtists = targetArtists.map(a => a.id);
     setStepCompleted(processSteps.SELECT_ARTISTS_FROM_PLAYLIST.id);
 
-    if (!targetArtists.length) {
-      return Promise.reject('No artists found with current configuration! Try to adjust some values');
-    }
-
     if (configData.viewedMode === modeTypes.DIVE_DEEPER) {
       targetArtists = await fetchRelatedArtists(targetArtists);
       setStepCompleted(processSteps.FETCH_RELATED_ARTISTS.id);
@@ -454,10 +457,6 @@ const Loader = (props) => {
 
     const tracksToAdd = await fetchArtistsTopTracks(targetArtists);
     setStepCompleted(processSteps.FETCH_ARTIST_TOP_TRACKS.id);
-
-    if (!tracksToAdd.length) {
-      return Promise.reject('No new tracks found with current configuration! Try to adjust some values');
-    }
 
     const createdPlaylists = await addTracksToPlaylist(tracksToAdd);
     setStepCompleted(processSteps.ADD_TRACKS_TO_PLAYLIST.id);
