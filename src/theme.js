@@ -7,18 +7,19 @@ export default createMuiTheme({
       main: '#1DB954'
     }
   },
-  // typography: {
-  //   fontFamily: [
-  //     'Verdana', 
-  //     'Geneva', 
-  //     'sans-serif'
-  //   ].join(',')
-  // },
+  typography: {
+    fontFamily: [
+      'Montserrat',
+      'Roboto',
+      'sans-serif'
+    ].join(',')
+  },
   components: {
     MuiButton: {
       styleOverrides:{
         label: {
-          color: 'white'
+          color: 'white',
+          fontWeight: 'bold'
         }
       }
     },  
