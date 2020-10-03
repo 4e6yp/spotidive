@@ -12,7 +12,8 @@ export default createMuiTheme({
       'Montserrat',
       'Roboto',
       'sans-serif'
-    ].join(',')
+    ].join(','),
+    fontSize: 12
   },
   components: {
     MuiButton: {
