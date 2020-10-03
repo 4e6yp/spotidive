@@ -65,6 +65,7 @@ const ModeSwitcher = (props) => {
       <ModeConfigurator 
         mode={viewedMode} 
         showError={props.showError} 
+        hideError={props.hideError}
         isAuth={props.isAuth}
         login={props.login}
         handleIsLoadingChanged={(isBusy) => setLoaderBusy(isBusy)}

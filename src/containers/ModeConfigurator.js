@@ -31,7 +31,7 @@ const useStyles = makeStyles({
 const ModeConfigurator = (props) => {
   const classes = useStyles();
 
-  const { showError, mode, handleIsLoadingChanged } = props;
+  const { hideError, mode, handleIsLoadingChanged } = props;
   const [playlists, setPlaylists] = useState([]);
 
   const [modeConfig, setModeConfig] = useState({
@@ -100,7 +100,7 @@ const ModeConfigurator = (props) => {
         [type]: value
       })
     );
-    showError(null);
+    hideError();
   }
 
   const handleStepsRecalculated = (newCount) => {
@@ -221,7 +221,7 @@ const ModeConfigurator = (props) => {
       <Loader 
         configData={modeConfig} 
         setPlaylists={setPlaylists}
-        showError={showError}
+        showError={props.showError}
         setRecalculatedTracks={handleStepsRecalculated}
         isAuth={props.isAuth}
         reenableConfigurator={handleProcessCompleted}
@@ -237,6 +237,7 @@ const ModeConfigurator = (props) => {
 ModeConfigurator.propTypes = {
   mode: PropTypes.oneOf(Object.values(modeTypes)).isRequired,
   showError: PropTypes.func.isRequired,
+  hideError: PropTypes.func.isRequired,
   isAuth: PropTypes.bool.isRequired,
   login: PropTypes.func.isRequired,
   handleIsLoadingChanged: PropTypes.func.isRequired

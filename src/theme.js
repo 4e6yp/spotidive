@@ -1,8 +1,8 @@
 import { createMuiTheme } from '@material-ui/core/styles';
 
-const theme = createMuiTheme({
+export default createMuiTheme({
   palette: {
-    type: 'dark',
+    mode: 'dark',
     primary: {
       main: '#1DB954'
     }
@@ -14,20 +14,30 @@ const theme = createMuiTheme({
   //     'sans-serif'
   //   ].join(',')
   // },
-  overrides: {
+  components: {
     MuiButton: {
-      label: {
-        color: 'white'
+      styleOverrides:{
+        label: {
+          color: 'white'
+        }
+      }
+    },  
+    MuiCssBaseline: {
+      styleOverrides: {
+        "@global": {
+          body: {
+            background: 'radial-gradient(circle, rgba(63,63,63,1) 0%, rgba(24,24,24,1) 100%)'          
+          }
+        }
       }
     },
-    MuiCssBaseline: {
-      "@global": {
-        body: {
-          background: 'radial-gradient(circle, rgba(63,63,63,1) 0%, rgba(24,24,24,1) 100%)'          
+    MuiStepper: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#282828',
+          padding: '20px'
         }
       }
     }
   }
 });
-
-export default theme;

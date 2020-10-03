@@ -2,18 +2,18 @@ import React, { useState, useEffect, useCallback, useReducer } from 'react';
 import ModeSwitcher from './containers/ModeSwitcher/ModeSwitcher';
 import axios from './axios-spotifyClient';
 import queryString from 'query-string';
-import { Container, Box, Typography, Snackbar } from '@material-ui/core';
-import { Alert } from '@material-ui/lab';
+import { Container, Box, Typography,  } from '@material-ui/core';
+import Snackbar from '@material-ui/core/Snackbar';
+import MuiAlert from '@material-ui/core/Alert';
 import GithubCorner from 'react-github-corner';
 import {messageReducer, messageActions } from './reducers/MessageReducer'
 
+const Alert = React.forwardRef(function Alert(props, ref) {
+  return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
+});
+
 const App = () => {
   const [token, setToken] = useState(null);
-
-  // const [message, setMessage] = useState({
-  //   text: null,
-  //   type: 'error'
-  // });
 
   const [message, setMessage] = useReducer(messageReducer, {
     isVisible: false,
@@ -118,7 +118,7 @@ const App = () => {
         Welcome!
       </Typography>
       <Box>
-        <ModeSwitcher isAuth={token !== null} login={loginHandler} showError={showNewError}/>
+        <ModeSwitcher isAuth={token !== null} login={loginHandler} showError={showNewError} hideError={() => setMessage({type: messageActions.HIDE_MESSAGE})}/>
       </Box>
       <Snackbar 
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
@@ -127,7 +127,7 @@ const App = () => {
         onClose={(_, reason) => handleMessageClosed(reason)}
       >
         <Alert 
-          variant='filled'
+          // variant='filled'
           severity={message.alertType}
           onClose={handleMessageClosed}
         >

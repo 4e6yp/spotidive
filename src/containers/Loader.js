@@ -60,7 +60,7 @@ const useStyles = makeStyles({
   },
   ModalContentContainer: {
     textAlign: 'center',
-    backgroundColor: 'rgba(1, 1, 1, 0.3)',
+    backgroundColor: '#282828',
     padding: '40px'
   },
   ModalPlaylists: {
