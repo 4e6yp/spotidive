@@ -29,7 +29,7 @@ const ModeConfigurator = (props) => {
 
   const [modeConfig, setModeConfig] = useState({
     viewedMode: null,
-    artistTracksThreshold: 15,
+    artistTracksThreshold: 3,
     targetQuantityPerArtist: 5,
     relatedArtistsQuantity: 10,
     newPlaylistName: `${document.title} Playlist`,
