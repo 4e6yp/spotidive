@@ -1,10 +1,12 @@
 import { createMuiTheme } from '@material-ui/core/styles';
 
+const mainGreenColor = '#1DB954';
+
 export default createMuiTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#1DB954'
+      main: mainGreenColor
     }
   },
   typography: {
@@ -38,6 +40,13 @@ export default createMuiTheme({
         root: {
           backgroundColor: '#282828',
           padding: '20px'
+        }
+      }
+    },
+    MuiInput: {
+      styleOverrides: {
+        root: {
+          color: mainGreenColor
         }
       }
     }

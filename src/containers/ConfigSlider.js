@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
 import { Link, makeStyles, Popover, Slider } from '@material-ui/core';
 import PropTypes from 'prop-types';
+import theme from '../theme';
 
 const useStyles = makeStyles({
   root: {
     '&:hover': {
       'cursor': 'pointer' 
+    }
+  },
+  disabledLink: {
+    '&:hover': {
+      'cursor': 'default'
+    },
+    'pointer-events': 'none',
+    '& a': {
+      color: theme.palette.text.disabled
     }
   },
   SliderContainer: {
@@ -27,7 +37,7 @@ const ConfigSlider = (props) => {
   }
 
   return (
-    <span className={classes.root}>
+    <span className={`${classes.root} ${props.disabled ? classes.disabledLink : ''}`}>
       <Link onClick={handleLinkClicked}>
         {props.value}
       </Link>

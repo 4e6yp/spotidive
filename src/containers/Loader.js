@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useReducer } from 'react';
+import React, { useState, useEffect, useCallback, useReducer, useMemo } from 'react';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types'; 
 import axios from '../axios-spotifyClient';
@@ -603,6 +603,18 @@ const Loader = (props) => {
     isLoading
   ])
 
+  const getSubmitButtonText = useMemo(() => {
+    if (!isAuth) {
+      return 'Login to proceed'
+    } else {
+      if (isLoading) {
+        return 'In progress...'
+      } else {
+        return 'Start Process'
+      }
+    }
+  }, [isAuth, isLoading])
+
   return (
     <Box className={classes.root}>
       { isLoading ? <LinearProgress variant="determinate" value={progress.current * 100} /> : null }
@@ -613,7 +625,7 @@ const Loader = (props) => {
         disabled={(isAuth && !props.isSubmitEnabled) || isLoading}
         onClick={isAuth ? initiateProcess : props.login}
       >
-        {isAuth ? 'Start Process' : 'Login to Proceed'}
+        {getSubmitButtonText}
       </Button>
       <Dialog
         className={classes.Modal}

@@ -1,26 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types';
 import Loader from './Loader';
-import { MenuItem, FormControl, Select, TextField, Typography, Stepper, Step, StepLabel, StepContent, makeStyles } from '@material-ui/core';
+import { MenuItem, FormControl, Select, TextField, Typography, Stepper, Step, StepLabel, StepContent, makeStyles, Tooltip } from '@material-ui/core';
 import ConfigSlider from './ConfigSlider';
 import processSteps from '../utility/processSteps';
-import theme from '../theme';
 
 const useStyles = makeStyles({
   Selector: {
-    bottom: '4px',
+    bottom: '3px',
     maxWidth: '300px'
   },
-  SelectorLabel: {
-    color: theme.palette.primary.main
-  },
   Textfield: {
-    bottom: '5px',
+    bottom: '4px',
     maxWidth: '140px',
-    '& input': {
-      color: theme.palette.primary.main
-    }
   },
   menuPaper: {
     maxHeight: '350px',
@@ -31,7 +24,7 @@ const useStyles = makeStyles({
 const ModeConfigurator = (props) => {
   const classes = useStyles();
 
-  const { hideError, mode, handleIsLoadingChanged } = props;
+  const { hideError, mode, handleIsLoadingChanged, isAuth } = props;
   const [playlists, setPlaylists] = useState([]);
 
   const [modeConfig, setModeConfig] = useState({
@@ -111,6 +104,20 @@ const ModeConfigurator = (props) => {
     }
   }
 
+  const wrapDisabledInputWithTooltip = useCallback((component) => {
+    let newComponent = component;
+
+    if (!isAuth) {
+      newComponent = <Tooltip title="You need to login in order to change values">
+        <span>
+          {component}
+        </span>
+      </Tooltip>
+    }
+
+    return newComponent;
+  }, [isAuth])
+
   const getStepContent = (step) => {
     switch (step) {
       case steps.FETCH_PLAYLIST_TRACKS.id:
@@ -127,6 +134,7 @@ const ModeConfigurator = (props) => {
               onChange={(event) => configValueChangedHandler('selectedPlaylist', event.target.value)}
               MenuProps={{ classes: {paper: classes.menuPaper} }}
               classes={{select: classes.SelectorLabel}}
+              disabled={!isAuth}
             >
               <MenuItem value={0}>Library</MenuItem>
               { playlistItems }
@@ -135,7 +143,7 @@ const ModeConfigurator = (props) => {
         )
 
         return <Typography component={'div'}>
-          Firstly, it will collect all of your saved tracks from {playlistsSelector}
+          Firstly, it will collect all of your saved tracks from {wrapDisabledInputWithTooltip(playlistsSelector)}
         </Typography>;
 
       case steps.SELECT_ARTISTS_FROM_PLAYLIST.id:
@@ -143,10 +151,11 @@ const ModeConfigurator = (props) => {
           action={(value) => configValueChangedHandler('artistTracksThreshold', value)}
           value={modeConfig.artistTracksThreshold}
           maxValue={15}
+          disabled={!isAuth}
         />
 
         return <Typography component={'div'}>
-          Then it will group those tracks by artists. And filter out all artists with at least {artistThresholdParam} track{modeConfig.artistTracksThreshold > 1 ? 's' : ''} saved (within selected playlist).
+          Then it will group those tracks by artists. And filter out all artists with at least {wrapDisabledInputWithTooltip(artistThresholdParam)} track{modeConfig.artistTracksThreshold > 1 ? 's' : ''} saved (within selected playlist).
         </Typography>;
 
       case steps.FETCH_RELATED_ARTISTS.id:
@@ -154,10 +163,11 @@ const ModeConfigurator = (props) => {
           action={(value) => configValueChangedHandler('relatedArtistsQuantity', value)}
           value={modeConfig.relatedArtistsQuantity}
           maxValue={20}
+          disabled={!isAuth}
         />
 
         return <Typography component={'div'}>
-          For each of the selected artist it will get {relatedArtistsParam} related artists, but only get the ones who has no saved tracks in your library.
+          For each of the selected artist it will get {wrapDisabledInputWithTooltip(relatedArtistsParam)} related artists, but only get the ones who has no saved tracks in your library.
         </Typography>;
 
       case steps.FETCH_ARTIST_TOP_TRACKS.id:
@@ -166,19 +176,21 @@ const ModeConfigurator = (props) => {
           action={(value) => configValueChangedHandler('targetQuantityPerArtist', value)}
           value={modeConfig.targetQuantityPerArtist}
           maxValue={10}
+          disabled={!isAuth}
         />
 
         return <Typography component={'div'}>
-          For each of the found artists it will get {targetQuantityParam} of his top tracks.
+          For each of the found artists it will get {wrapDisabledInputWithTooltip(targetQuantityParam)} of his top tracks.
         </Typography>;
 
       case steps.ADD_TRACKS_TO_PLAYLIST.id:
         const playlistNameParam = <TextField className={classes.Textfield} 
           value={modeConfig.newPlaylistName}
           onChange={(event) => configValueChangedHandler("newPlaylistName", event.target.value)}
+          disabled={!isAuth}
         />
         return <Typography component={'div'}>
-          Finally, it will add all selected tracks {calculatedTracksCount ? `(about ${calculatedTracksCount} at max) ` : ''}to the newly created playlist {playlistNameParam}
+          Finally, it will add all selected tracks {calculatedTracksCount ? `(about ${calculatedTracksCount} at max) ` : ''}to the newly created playlist {wrapDisabledInputWithTooltip(playlistNameParam)}
         </Typography>;
 
       default:
