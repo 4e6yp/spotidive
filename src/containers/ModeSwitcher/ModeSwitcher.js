@@ -54,7 +54,7 @@ const ModeSwitcher = (props) => {
   return (
     <>
       <Typography variant="h6" align="center" color="textSecondary" component="p">
-        Want to get to know all of your artists better and discover new ones?
+        Want to get to know all of your Spotify artists better and discover new ones?
       </Typography>
       <Typography variant="h6" align="center" color="textSecondary" component="p">
         Just select any mode and follow along.

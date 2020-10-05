@@ -115,7 +115,7 @@ const App = () => {
   return (
     <Container maxWidth="md" component="main" style={{padding: '5px'}}>
       <Typography component="h3" variant="h3" align="center" color="textPrimary">
-        Welcome!
+        Welcome to Spotidive!
       </Typography>
       <Box>
         <ModeSwitcher isAuth={token !== null} login={loginHandler} showError={showNewError} hideError={() => setMessage({type: messageActions.HIDE_MESSAGE})}/>
