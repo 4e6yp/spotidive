@@ -24,7 +24,7 @@ const ModeSwitcher = (props) => {
     switch (mode) {
       case modeTypes.DIVE_DEEPER:        
         result.title = 'Dive Deeper'
-        result.desc = `Discover brand new artists related to the ones from your library! Recommended for everybody who wants to find new artists, similar to their favorite ones.`
+        result.desc = `Discover brand new artists related to the ones from your library! Find the new voices for your own taste.`
         break;
     
       case modeTypes.LOOK_CLOSER:
@@ -54,7 +54,7 @@ const ModeSwitcher = (props) => {
   return (
     <>
       <Typography variant="h6" align="center" color="textSecondary" component="p">
-        Want to get to know better all of your artists and discover new ones?
+        Want to get to know all of your artists better and discover new ones?
       </Typography>
       <Typography variant="h6" align="center" color="textSecondary" component="p">
         Just select any mode and follow along.

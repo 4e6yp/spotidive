@@ -127,7 +127,6 @@ const App = () => {
         onClose={(_, reason) => handleMessageClosed(reason)}
       >
         <Alert 
-          // variant='filled'
           severity={message.alertType}
           onClose={handleMessageClosed}
         >

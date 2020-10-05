@@ -143,7 +143,7 @@ const ModeConfigurator = (props) => {
         )
 
         return <Typography component={'div'}>
-          Firstly, it will collect all of your saved tracks from {wrapDisabledInputWithTooltip(playlistsSelector)}
+          Firstly, app will collect all of your saved tracks from {wrapDisabledInputWithTooltip(playlistsSelector)}
         </Typography>;
 
       case steps.SELECT_ARTISTS_FROM_PLAYLIST.id:
@@ -155,7 +155,7 @@ const ModeConfigurator = (props) => {
         />
 
         return <Typography component={'div'}>
-          Then it will group those tracks by artists. And filter out all artists with at least {wrapDisabledInputWithTooltip(artistThresholdParam)} track{modeConfig.artistTracksThreshold > 1 ? 's' : ''} saved (within selected playlist).
+          Then it will group collected tracks by artists. And filter out all entries with at least {wrapDisabledInputWithTooltip(artistThresholdParam)} track{modeConfig.artistTracksThreshold > 1 ? 's' : ''} saved (within selected playlist).
         </Typography>;
 
       case steps.FETCH_RELATED_ARTISTS.id:
