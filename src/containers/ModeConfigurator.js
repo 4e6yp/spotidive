@@ -7,6 +7,9 @@ import ConfigSlider from './ConfigSlider';
 import processSteps from '../utility/processSteps';
 
 const useStyles = makeStyles({
+  Header: {
+    paddingBottom: '10px'
+  },
   Selector: {
     bottom: '3px',
     maxWidth: '300px'
@@ -18,6 +21,9 @@ const useStyles = makeStyles({
   menuPaper: {
     maxHeight: '350px',
     maxWidth: '450px'
+  },
+  Stepper: {
+    'box-shadow': '0px 0px 10px 5px rgba(0,0,0,0.5)'
   }
 })
 
@@ -188,6 +194,7 @@ const ModeConfigurator = (props) => {
           value={modeConfig.newPlaylistName}
           onChange={(event) => configValueChangedHandler("newPlaylistName", event.target.value)}
           disabled={!isAuth}
+          inputProps={{ spellCheck: 'false' }}
         />
         return <Typography component={'div'}>
           Finally, it will add all selected tracks {calculatedTracksCount ? `(about ${calculatedTracksCount} at max) ` : ''}to the newly created playlist {wrapDisabledInputWithTooltip(playlistNameParam)}
@@ -218,8 +225,8 @@ const ModeConfigurator = (props) => {
 
   return (
     <>    
-      <Typography variant="h4" align="center">HOW IT WORKS</Typography>
-      <Stepper nonLinear={true} orientation="vertical">
+      <Typography variant="h4" align="center" className={classes.Header}>HOW IT WORKS</Typography>
+      <Stepper nonLinear={true} orientation="vertical" className={classes.Stepper}>
         {
           Object.keys(stepsToShow).map(stepKey => (
             <Step key={stepKey} expanded={!isDisabled} active={false} completed={steps[stepKey].isCompleted}>
