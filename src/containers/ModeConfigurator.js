@@ -34,7 +34,7 @@ const ModeConfigurator = (props) => {
   const [playlists, setPlaylists] = useState([]);
 
   const [modeConfig, setModeConfig] = useState({
-    viewedMode: mode,
+    viewedMode: null,
     artistTracksThreshold: 3,
     targetQuantityPerArtist: 5,
     relatedArtistsQuantity: 10,
@@ -49,7 +49,7 @@ const ModeConfigurator = (props) => {
       result[key] = {
         ...processSteps[key],
         isCompleted: false,
-      };
+      };      
       return result;
     }, {})
   }, []);
@@ -63,7 +63,7 @@ const ModeConfigurator = (props) => {
   const setStepCompleted = (step) => {
     setStepsToShow(oldSteps => {
       const newSteps = {
-        ...oldSteps,
+        ...oldSteps,        
       }
       if (newSteps[step]) {
         newSteps[step].isCompleted = true;
@@ -131,12 +131,12 @@ const ModeConfigurator = (props) => {
         if (playlists) {
           playlistItems = playlists.map(p => <MenuItem key={p.id} value={p.id} >{p.name} ({p.tracksTotal})</MenuItem>)
         }
-
+        
         const playlistsSelector = (
           <FormControl className={classes.Selector}>
-            <Select
-              labelId="playlistsSelect"
-              value={modeConfig.selectedPlaylist}
+            <Select 
+              labelId="playlistsSelect" 
+              value={modeConfig.selectedPlaylist} 
               onChange={(event) => configValueChangedHandler('selectedPlaylist', event.target.value)}
               MenuProps={{ classes: {paper: classes.menuPaper} }}
               classes={{select: classes.SelectorLabel}}
@@ -153,7 +153,7 @@ const ModeConfigurator = (props) => {
         </Typography>;
 
       case steps.SELECT_ARTISTS_FROM_PLAYLIST.id:
-        const artistThresholdParam = <ConfigSlider
+        const artistThresholdParam = <ConfigSlider 
           action={(value) => configValueChangedHandler('artistTracksThreshold', value)}
           value={modeConfig.artistTracksThreshold}
           maxValue={15}
@@ -165,7 +165,7 @@ const ModeConfigurator = (props) => {
         </Typography>;
 
       case steps.FETCH_RELATED_ARTISTS.id:
-        const relatedArtistsParam = <ConfigSlider
+        const relatedArtistsParam = <ConfigSlider 
           action={(value) => configValueChangedHandler('relatedArtistsQuantity', value)}
           value={modeConfig.relatedArtistsQuantity}
           maxValue={20}
@@ -177,7 +177,7 @@ const ModeConfigurator = (props) => {
         </Typography>;
 
       case steps.FETCH_ARTIST_TOP_TRACKS.id:
-        const targetQuantityParam = <ConfigSlider
+        const targetQuantityParam = <ConfigSlider 
           title="Target tracks quantity per artist"
           action={(value) => configValueChangedHandler('targetQuantityPerArtist', value)}
           value={modeConfig.targetQuantityPerArtist}
@@ -190,7 +190,7 @@ const ModeConfigurator = (props) => {
         </Typography>;
 
       case steps.ADD_TRACKS_TO_PLAYLIST.id:
-        const playlistNameParam = <TextField className={classes.Textfield}
+        const playlistNameParam = <TextField className={classes.Textfield} 
           value={modeConfig.newPlaylistName}
           onChange={(event) => configValueChangedHandler("newPlaylistName", event.target.value)}
           disabled={!isAuth}
@@ -213,7 +213,7 @@ const ModeConfigurator = (props) => {
   const handleProcessCompleted = () => {
     setIsDisabled(false);
     handleIsLoadingChanged(false);
-
+    
     setStepsToShow(steps => {
       const newSteps = {...steps};
       for (let step in newSteps) {
@@ -224,7 +224,7 @@ const ModeConfigurator = (props) => {
   }
 
   return (
-    <>
+    <>    
       <Typography variant="h4" align="center" className={classes.Header}>HOW IT WORKS</Typography>
       <Stepper nonLinear={true} orientation="vertical" className={classes.Stepper}>
         {
@@ -237,8 +237,8 @@ const ModeConfigurator = (props) => {
         }
       </Stepper>
 
-      <Loader
-        configData={modeConfig}
+      <Loader 
+        configData={modeConfig} 
         setPlaylists={setPlaylists}
         showError={props.showError}
         setRecalculatedTracks={handleStepsRecalculated}
