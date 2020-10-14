@@ -1,33 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from "react-router-dom"
 import { Typography } from '@material-ui/core';
-import * as modeTypes from '../../utility/modeTypes';
+import {modes, pathMap, DIVE_DEEPER, LOOK_CLOSER} from '../../utility/modeTypes';
 import './ModeSwitcher.css';
 import PropTypes from 'prop-types';
 import ModeConfigurator from '../ModeConfigurator';
 
 const ModeSwitcher = (props) => {
-  const [viewedMode, setViewedMode] = useState(modeTypes.LOOK_CLOSER); 
-  const [isLoaderBusy, setLoaderBusy] = useState(false); 
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const modes = [
-    modeTypes.LOOK_CLOSER,
-    modeTypes.DIVE_DEEPER,
-  ]
+  const [viewedMode, setViewedMode] = useState(LOOK_CLOSER);
+  const [isLoaderBusy, setLoaderBusy] = useState(false);
+
+  useEffect(() => {
+    const {pathname} = location
+
+    if (pathname === pathMap[DIVE_DEEPER]) {
+      setViewedMode(DIVE_DEEPER)
+    } else {
+      setViewedMode(LOOK_CLOSER)
+    }
+
+  }, [location, navigate])
 
   const getModeInfo = (mode) => {
     const result = {
-      action: () => setViewedMode(mode),
+      action: () => navigate(pathMap[mode]),
       title: '',
       desc: ''
     }
 
     switch (mode) {
-      case modeTypes.DIVE_DEEPER:        
+      case DIVE_DEEPER:
         result.title = 'Dive Deeper'
         result.desc = `Discover brand new artists related to the ones from your library! Find the new voices for your own taste.`
         break;
-    
-      case modeTypes.LOOK_CLOSER:
+
+      case LOOK_CLOSER:
         result.title = 'Look Closer'
         result.desc = `Discover the best unknown songs of familiar artists from your library! Find out what gems you might have missed.`
         break;
@@ -62,9 +72,9 @@ const ModeSwitcher = (props) => {
       <div className={`accordion ${isLoaderBusy ? 'disabled' : ''}`}>
         { modesElements }
       </div>
-      <ModeConfigurator 
-        mode={viewedMode} 
-        showError={props.showError} 
+      <ModeConfigurator
+        mode={viewedMode}
+        showError={props.showError}
         hideError={props.hideError}
         isAuth={props.isAuth}
         login={props.login}
