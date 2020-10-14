@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from "react-router-dom"
 import { Typography } from '@material-ui/core';
-import {modes, DIVE_DEEPER, LOOK_CLOSER} from '../../utility/modeTypes';
+import {modes, pathMap, DIVE_DEEPER, LOOK_CLOSER} from '../../utility/modeTypes';
 import './ModeSwitcher.css';
 import PropTypes from 'prop-types';
 import ModeConfigurator from '../ModeConfigurator';
@@ -18,20 +18,17 @@ const ModeSwitcher = (props) => {
   useEffect(() => {
     const {pathname} = location
 
-    if (![DIVE_DEEPER.pathname, LOOK_CLOSER.pathname].includes(pathname)) {
-      navigate(LOOK_CLOSER.pathname)
-    }
-
-    if (pathname === DIVE_DEEPER.pathname) {
+    if (pathname === pathMap[DIVE_DEEPER]) {
       setViewedMode(DIVE_DEEPER)
     } else {
       setViewedMode(LOOK_CLOSER)
     }
+
   }, [location, navigate])
 
   const getModeInfo = (mode) => {
     const result = {
-      action: () => navigate(mode.pathname),
+      action: () => navigate(pathMap[mode]),
       title: '',
       desc: ''
     }
