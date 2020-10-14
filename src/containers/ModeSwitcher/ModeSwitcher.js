@@ -22,7 +22,7 @@ const ModeSwitcher = (props) => {
       setViewedMode(LOOK_CLOSER)
     }
 
-  }, [location, navigate])
+  }, [location])
 
   const getModeInfo = (mode) => {
     const result = {
