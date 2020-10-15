@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from "react-router-dom"
+import { useLocalStorage} from "../../hooks"
 import { Typography } from '@material-ui/core';
 import {modes, pathMap, DIVE_DEEPER, LOOK_CLOSER} from '../../utility/modeTypes';
 import './ModeSwitcher.css';
-import PropTypes from 'prop-types';
 import ModeConfigurator from '../ModeConfigurator';
 
-const ModeSwitcher = (props) => {
+const ModeSwitcher = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [viewedMode, setViewedMode] = useState(LOOK_CLOSER);
+  const [viewedMode, setViewedMode] = useLocalStorage("current_mode", LOOK_CLOSER);
   const [isLoaderBusy, setLoaderBusy] = useState(false);
 
   useEffect(() => {
@@ -18,11 +18,11 @@ const ModeSwitcher = (props) => {
 
     if (pathname === pathMap[DIVE_DEEPER]) {
       setViewedMode(DIVE_DEEPER)
-    } else {
+    } else if (pathname === pathMap[LOOK_CLOSER]) {
       setViewedMode(LOOK_CLOSER)
     }
 
-  }, [location])
+  }, [location, setViewedMode])
 
   const getModeInfo = (mode) => {
     const result = {
@@ -74,20 +74,10 @@ const ModeSwitcher = (props) => {
       </div>
       <ModeConfigurator
         mode={viewedMode}
-        showError={props.showError}
-        hideError={props.hideError}
-        isAuth={props.isAuth}
-        login={props.login}
         handleIsLoadingChanged={(isBusy) => setLoaderBusy(isBusy)}
       />
     </>
   );
-}
-
-ModeSwitcher.propTypes = {
-  isAuth: PropTypes.bool.isRequired,
-  showError: PropTypes.func.isRequired,
-  login: PropTypes.func.isRequired
 }
 
 export default ModeSwitcher;

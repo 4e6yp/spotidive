@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useReducer, useMemo } from 'react';
+import {useAlertMessage, useAuth} from "../hooks/";
 import * as modeTypes from '../utility/modeTypes';
-import PropTypes from 'prop-types'; 
+import PropTypes from 'prop-types';
 import axios from '../axios-spotifyClient';
 import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
 import { Typography, Box, Button, makeStyles, LinearProgress, Dialog, Zoom, DialogActions } from '@material-ui/core';
@@ -19,7 +20,7 @@ axiosRetry(axios, {
     if (error.response.status === 429) {
       const retryAfter = parseInt(error.response.headers['retry-after']);
       return retryAfter ? (retryAfter * 1000) + 500 : 3000
-    }    
+    }
     return 3000;
   }
 })
@@ -43,7 +44,7 @@ axios.interceptors.request.use(async req => {
     await wait(cooldown * cooldownMultiplier);
 
     // reset counter when all queued requests are finished
-    requestsCounter = requestsCounter - 1 === requestsLimit ? 0 : requestsCounter - 1;    
+    requestsCounter = requestsCounter - 1 === requestsLimit ? 0 : requestsCounter - 1;
   }
   return req;
 })
@@ -78,13 +79,13 @@ const ModalTransition = React.forwardRef((props, ref) => <Zoom ref={ref} {...pro
 
 const Loader = (props) => {
   const classes = useStyles();
+  const {isAuth, login} = useAuth();
+  const {errorMessage} = useAlertMessage();
 
-  const { 
-    setPlaylists, 
-    configData, 
-    showError, 
-    setRecalculatedTracks, 
-    isAuth,
+  const {
+    setPlaylists,
+    configData,
+    setRecalculatedTracks,
     disableConfigurator,
     reenableConfigurator,
     setStepCompleted
@@ -105,7 +106,7 @@ const Loader = (props) => {
     stepPercent: 0,
     current: 0,
     total: 0
-  }) 
+  })
 
   const setTotalProgress = (total, stepPercent) => {
     progressDispatch({
@@ -117,7 +118,7 @@ const Loader = (props) => {
 
   const incrementProgress = () => {
     progressDispatch({
-      type: progressBarActions.INCREMENT_PROGRESS      
+      type: progressBarActions.INCREMENT_PROGRESS
     })
   }
 
@@ -152,7 +153,7 @@ const Loader = (props) => {
   //     </div>
   //   </Box>
   // });
-  
+
   const [isLoading, setIsLoading] = useState(false);
 
   const playlistTracksLimit = 10000;
@@ -160,7 +161,7 @@ const Loader = (props) => {
   const isTrackAlreadyAdded = useCallback((trackData) => {
     const savedTracks = spotifyData.tracks;
     const trackArtists = trackData.artists.map(a => a.id);
-    
+
     return savedTracks.some(track => (
       track.id === trackData.id || (track.name === trackData.name && track.artists.every(artist => trackArtists.includes(artist.id)))
     ))
@@ -213,9 +214,9 @@ const Loader = (props) => {
         incrementProgress();
         return addedTracks;
       }
-      
+
       const addTracksRequests = [];
-      
+
       playlistPack.forEach(tracksUris => {
         addTracksRequests.push(addTracksRequest(createdPlaylist.data.id, tracksUris));
       })
@@ -245,16 +246,16 @@ const Loader = (props) => {
       incrementProgress();
 
       let newTracks = [];
-                 
+
       artistTopTracks.data.tracks.some(track => {
-        // Semantic check by name and artist, not just id inclusion                          
+        // Semantic check by name and artist, not just id inclusion
         if (!isTrackAlreadyAdded(track)) {
           newTracks.push(track.uri);
         }
 
         return newTracks.length === configData.targetQuantityPerArtist;
       })
-      
+
       return newTracks;
     }
 
@@ -385,7 +386,7 @@ const Loader = (props) => {
     const playlistRequest = async (id) => {
       let playlistData = await axios.get(`/playlists/${id}`);
       incrementProgress();
-      
+
       playlistData = playlistData.data;
       return {
         id: playlistData.id,
@@ -446,7 +447,7 @@ const Loader = (props) => {
         break;
       }
     }
-    
+
     targetArtists = targetArtists.map(a => a.id);
     setStepCompleted(processSteps.SELECT_ARTISTS_FROM_PLAYLIST.id);
 
@@ -464,12 +465,12 @@ const Loader = (props) => {
     await showPlaylistsResultModal(createdPlaylists);
     return;
   }, [
-    addTracksToPlaylist, 
-    configData, 
+    addTracksToPlaylist,
+    configData,
     fetchArtistsTopTracks,
-    fetchPlaylistTracks, 
+    fetchPlaylistTracks,
     fetchRelatedArtists,
-    setStepCompleted, 
+    setStepCompleted,
     spotifyData.artists,
     showPlaylistsResultModal
   ])
@@ -499,12 +500,12 @@ const Loader = (props) => {
         handleProcessFinished();
       })
       .catch(error => {
-        showError(error);     
+        errorMessage(error);
       })
 
   }, [
-      showError, 
-      isAuth, 
+      errorMessage,
+      isAuth,
       disableConfigurator,
       isLoading,
       executeProcess,
@@ -520,26 +521,26 @@ const Loader = (props) => {
         setSpotifyUserId(res.data.id);
       })
       .catch((error) => {
-        showError(error)
+        errorMessage(error)
       })
-  }, [showError, isAuth])
+  }, [errorMessage, isAuth])
 
   // Get all user playlists
   useEffect(() => {
     if (!isAuth) { return }
-    synchFetchMultiplePages('/me/playlists', 50, items => 
-      items.map(playlist => ({ 
+    synchFetchMultiplePages('/me/playlists', 50, items =>
+      items.map(playlist => ({
         id: playlist.id,
-        name: playlist.name,          
+        name: playlist.name,
         tracksTotal: playlist.tracks.total
       }))
     ).then(playlists => {
       setPlaylists(playlists)
     })
     .catch((error) => {
-      showError(error);
+      errorMessage(error);
     })
-  }, [setPlaylists, isAuth, showError])
+  }, [setPlaylists, isAuth, errorMessage])
 
   // Get all tracks from the library
   useEffect(() => {
@@ -557,23 +558,23 @@ const Loader = (props) => {
         })
       })
       .catch((error) => {
-        showError(error);
+        errorMessage(error);
       })
-  }, [fetchPlaylistTracks, showError, isAuth, spotifyData.fetch.finished])
+  }, [fetchPlaylistTracks, errorMessage, isAuth, spotifyData.fetch.finished])
 
   // Start process if it was initiated while fetching library
   useEffect(() => {
     if (spotifyData.fetch.pending && spotifyData.fetch.finished) {
-      spotifyDataDispatch({type: spotifyDataActions.FINISHED_PENDING});      
+      spotifyDataDispatch({type: spotifyDataActions.FINISHED_PENDING});
       executeProcess()
         .finally(() => {
           handleProcessFinished();
         })
         .catch(error => {
-          showError(error);
+          errorMessage(error);
         })
     }
-  }, [spotifyData.fetch, executeProcess, reenableConfigurator, showError, handleProcessFinished])
+  }, [spotifyData.fetch, executeProcess, reenableConfigurator, errorMessage, handleProcessFinished])
 
   // Recalculate tracks count with each config change
   useEffect(() => {
@@ -595,10 +596,10 @@ const Loader = (props) => {
 
     setRecalculatedTracks(artistsCtr * configData.targetQuantityPerArtist);
   }, [
-    configData, 
+    configData,
     spotifyData.fetch.finished,
     spotifyData.artists,
-    isAuth, 
+    isAuth,
     setRecalculatedTracks,
     isLoading
   ])
@@ -618,18 +619,18 @@ const Loader = (props) => {
   return (
     <Box className={classes.root}>
       { isLoading ? <LinearProgress variant="determinate" value={progress.current * 100} /> : null }
-      <Button 
+      <Button
         className={classes.Button}
         size="large"
         variant="contained"
         disabled={(isAuth && !props.isSubmitEnabled) || isLoading}
-        onClick={isAuth ? initiateProcess : props.login}
+        onClick={isAuth ? initiateProcess : login}
       >
         {getSubmitButtonText}
       </Button>
       <Dialog
         className={classes.Modal}
-        open={modal.isVisible} 
+        open={modal.isVisible}
         onClose={closeModal}
         fullWidth
         maxWidth='md'
@@ -647,13 +648,10 @@ const Loader = (props) => {
 Loader.propTypes = {
   configData: PropTypes.object,
   setPlaylists: PropTypes.func.isRequired,
-  showError: PropTypes.func.isRequired,
   setRecalculatedTracks: PropTypes.func.isRequired,
-  isAuth: PropTypes.bool.isRequired,
   reenableConfigurator: PropTypes.func.isRequired,
   disableConfigurator: PropTypes.func.isRequired,
   setStepCompleted: PropTypes.func.isRequired,
-  login: PropTypes.func.isRequired,
   isSubmitEnabled: PropTypes.bool.isRequired
 }
 

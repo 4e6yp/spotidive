@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {useAlertMessage, useAuth} from "../hooks/";
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types';
 import Loader from './Loader';
@@ -27,10 +28,12 @@ const useStyles = makeStyles({
   }
 })
 
-const ModeConfigurator = (props) => {
+const ModeConfigurator = ({ mode, handleIsLoadingChanged }) => {
   const classes = useStyles();
 
-  const { hideError, mode, handleIsLoadingChanged, isAuth } = props;
+  const {isAuth} = useAuth()
+  const {hideMessage} = useAlertMessage()
+
   const [playlists, setPlaylists] = useState([]);
 
   const [modeConfig, setModeConfig] = useState({
@@ -99,7 +102,7 @@ const ModeConfigurator = (props) => {
         [type]: value
       })
     );
-    hideError();
+    hideMessage();
   }
 
   const handleStepsRecalculated = (newCount) => {
@@ -240,13 +243,10 @@ const ModeConfigurator = (props) => {
       <Loader
         configData={modeConfig}
         setPlaylists={setPlaylists}
-        showError={props.showError}
         setRecalculatedTracks={handleStepsRecalculated}
-        isAuth={props.isAuth}
         reenableConfigurator={handleProcessCompleted}
         disableConfigurator={handleProcessStarted}
         setStepCompleted={(step) => setStepCompleted(step)}
-        login={props.login}
         isSubmitEnabled={isSubmitEnabled}
       />
     </>
@@ -255,10 +255,6 @@ const ModeConfigurator = (props) => {
 
 ModeConfigurator.propTypes = {
   mode: PropTypes.oneOf(Object.values(modeTypes)).isRequired,
-  showError: PropTypes.func.isRequired,
-  hideError: PropTypes.func.isRequired,
-  isAuth: PropTypes.bool.isRequired,
-  login: PropTypes.func.isRequired,
   handleIsLoadingChanged: PropTypes.func.isRequired
 }
 
