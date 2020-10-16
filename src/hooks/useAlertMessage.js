@@ -18,7 +18,6 @@ function useAlertMessage() {
 
     const errorMessage = useCallback((text = 'Error occured, please try again') => {
         if (typeof text !== 'string' && text !== null) {
-            console.log(text);
             text = 'Error occured, please try again';
         }
 

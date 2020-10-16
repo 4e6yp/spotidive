@@ -8,25 +8,22 @@ function useLocalStorage(key, initialValue) {
 
         return item ? JSON.parse(item) : initialValue;
       } catch (error) {
-
-        console.log(error);
         return initialValue;
       }
     });
 
     const setValue = value => {
-      try {
-
-        const valueToStore =
-          value instanceof Function ? value(storedValue) : value;
-
-          setStoredValue(valueToStore);
-
-          window.localStorage.setItem(key, JSON.stringify(valueToStore));
-      } catch (error) {
-
-        console.log(error);
+      if (value === null) {
+        window.localStorage.removeItem(key);
+        setStoredValue(null);
+        return;
       }
+
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+
+      setStoredValue(valueToStore);
+
+      window.localStorage.setItem(key, JSON.stringify(valueToStore));
     };
 
     return [storedValue, setValue];

@@ -1,5 +1,5 @@
-import React from 'react';
-import {useAlertMessage} from './hooks';
+import React, { createContext } from 'react';
+import {useAlertMessage, useAuth} from './hooks';
 import ModeSwitcher from './containers/ModeSwitcher/ModeSwitcher';
 import { Container, Box, Typography } from '@material-ui/core';
 import Snackbar from '@material-ui/core/Snackbar';
@@ -10,7 +10,10 @@ const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
+export const AuthContext = createContext(null);
+
 const App = () => {
+  const {isAuth, login} = useAuth()
   const {message, handleMessageClosed} = useAlertMessage()
 
   return (
@@ -19,7 +22,9 @@ const App = () => {
         Welcome to Spotidive!
       </Typography>
       <Box>
-        <ModeSwitcher />
+        <AuthContext.Provider value={{isAuth, login}}>
+          <ModeSwitcher />
+        </AuthContext.Provider>
       </Box>
       <Snackbar
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}

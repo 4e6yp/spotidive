@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import {useAlertMessage, useAuth} from "../hooks/";
+import React, { useState, useEffect, useMemo, useCallback, useContext } from 'react';
+import {useAlertMessage} from "../hooks/";
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types';
 import Loader from './Loader';
 import { MenuItem, FormControl, Select, TextField, Typography, Stepper, Step, StepLabel, StepContent, makeStyles, Tooltip } from '@material-ui/core';
 import ConfigSlider from './ConfigSlider';
 import processSteps from '../utility/processSteps';
+import { AuthContext } from '../App'
 
 const useStyles = makeStyles({
   Header: {
@@ -31,7 +32,7 @@ const useStyles = makeStyles({
 const ModeConfigurator = ({ mode, handleIsLoadingChanged }) => {
   const classes = useStyles();
 
-  const {isAuth} = useAuth()
+  const authContext = useContext(AuthContext)
   const {hideMessage} = useAlertMessage()
 
   const [playlists, setPlaylists] = useState([]);
@@ -116,7 +117,7 @@ const ModeConfigurator = ({ mode, handleIsLoadingChanged }) => {
   const wrapDisabledInputWithTooltip = useCallback((component) => {
     let newComponent = component;
 
-    if (!isAuth) {
+    if (!authContext.isAuth) {
       newComponent = <Tooltip title="You need to login in order to change values">
         <span>
           {component}
@@ -125,7 +126,7 @@ const ModeConfigurator = ({ mode, handleIsLoadingChanged }) => {
     }
 
     return newComponent;
-  }, [isAuth])
+  }, [authContext.isAuth])
 
   const getStepContent = (step) => {
     switch (step) {
@@ -143,7 +144,7 @@ const ModeConfigurator = ({ mode, handleIsLoadingChanged }) => {
               onChange={(event) => configValueChangedHandler('selectedPlaylist', event.target.value)}
               MenuProps={{ classes: {paper: classes.menuPaper} }}
               classes={{select: classes.SelectorLabel}}
-              disabled={!isAuth}
+              disabled={!authContext.isAuth}
             >
               <MenuItem value={0}>Library</MenuItem>
               { playlistItems }
@@ -160,7 +161,7 @@ const ModeConfigurator = ({ mode, handleIsLoadingChanged }) => {
           action={(value) => configValueChangedHandler('artistTracksThreshold', value)}
           value={modeConfig.artistTracksThreshold}
           maxValue={15}
-          disabled={!isAuth}
+          disabled={!authContext.isAuth}
         />
 
         return <Typography component={'div'}>
@@ -172,7 +173,7 @@ const ModeConfigurator = ({ mode, handleIsLoadingChanged }) => {
           action={(value) => configValueChangedHandler('relatedArtistsQuantity', value)}
           value={modeConfig.relatedArtistsQuantity}
           maxValue={20}
-          disabled={!isAuth}
+          disabled={!authContext.isAuth}
         />
 
         return <Typography component={'div'}>
@@ -185,7 +186,7 @@ const ModeConfigurator = ({ mode, handleIsLoadingChanged }) => {
           action={(value) => configValueChangedHandler('targetQuantityPerArtist', value)}
           value={modeConfig.targetQuantityPerArtist}
           maxValue={10}
-          disabled={!isAuth}
+          disabled={!authContext.isAuth}
         />
 
         return <Typography component={'div'}>
@@ -196,7 +197,7 @@ const ModeConfigurator = ({ mode, handleIsLoadingChanged }) => {
         const playlistNameParam = <TextField className={classes.Textfield}
           value={modeConfig.newPlaylistName}
           onChange={(event) => configValueChangedHandler("newPlaylistName", event.target.value)}
-          disabled={!isAuth}
+          disabled={!authContext.isAuth}
           inputProps={{ spellCheck: 'false' }}
         />
         return <Typography component={'div'}>

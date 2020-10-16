@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useReducer, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useReducer, useMemo, useContext } from 'react';
 import {useAlertMessage, useAuth} from "../hooks/";
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types';
@@ -10,6 +10,7 @@ import processSteps from '../utility/processSteps';
 import { allSettledRequests, synchFetchMultiplePages } from '../utility/Loader';
 import { spotifyDataActions, spotifyDataReducer } from '../reducers/SpotifyReducer';
 import { progressBarActions, progressBarReducer } from '../reducers/ProgressBarReducer';
+import { AuthContext } from '../App'
 
 axiosRetry(axios, {
   retries: 5,
@@ -79,7 +80,7 @@ const ModalTransition = React.forwardRef((props, ref) => <Zoom ref={ref} {...pro
 
 const Loader = (props) => {
   const classes = useStyles();
-  const {isAuth, login} = useAuth();
+  const {isAuth, login} = useContext(AuthContext);
   const {errorMessage} = useAlertMessage();
 
   const {

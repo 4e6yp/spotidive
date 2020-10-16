@@ -1,4 +1,4 @@
-import {useState, useEffect} from "react";
+import {useEffect, useState} from "react";
 import queryString from 'query-string';
 import {useLocalStorage} from "./useLocalStorage";
 import {useAlertMessage} from "./useAlertMessage";
@@ -10,7 +10,8 @@ function useAuth() {
     const [expirationDate, setExpirationDate] = useLocalStorage("expiration_date", null);
     const [tokenChecked, setTokenChecked] = useState(false)
 
-    const checkSavedToken = () => {
+    useEffect(() => {
+      const checkSavedToken = () => {
         if (expirationDate < new Date()) {
           setToken(null);
           setExpirationDate(null);
@@ -19,13 +20,12 @@ function useAuth() {
           axios.defaults.headers = {
             'Authorization': 'Bearer ' + token
           };
+          setTokenChecked(true)
           successMessage('Successfully authenticated in Spotify!');
-          setTokenChecked(true);
         }
       }
 
       axios.interceptors.response.use(response => response, error => {
-        console.log(axios.defaults)
         if (error.response.status === 401 || error.response.status === 403) {
           setToken(null)
           setExpirationDate(null)
@@ -35,7 +35,6 @@ function useAuth() {
       })
 
       // Handle auth and callback
-      useEffect(() => {
         if (window.location.pathname === '/callback') {
           if (window.location.hash) { // success
             const parsedHash = queryString.parse(window.location.hash);
