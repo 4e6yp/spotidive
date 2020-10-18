@@ -1,91 +1,57 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import queryString from 'query-string';
-import { useLocalStorage } from "./useLocalStorage";
-import { AlertContext } from "../context/Alert";
+import { useInterceptors } from '../hooks';
+import { AlertContext } from '../context/Alert';
+import { AuthContext } from '../context/Auth';
+import { calcExpirationDate } from '../utility/login';
 import axios from '../axios-spotifyClient';
 
 function useAuth() {
-  const { successMessage, errorMessage } = useContext(AlertContext)
-  const [token, setToken] = useLocalStorage("token", null);
-  const [expirationDate, setExpirationDate] = useLocalStorage("expiration_date", null);
-  const [tokenChecked, setTokenChecked] = useState(false);
+  useInterceptors()
+
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const { successMessage } = useContext(AlertContext)
+  const { token, setToken, setTokenChecked, expirationDate, setExpirationDate } = useContext(AuthContext)
 
   useEffect(() => {
-    const checkSavedToken = () => {
-      if (expirationDate < new Date()) {
-        setToken(null);
-        setExpirationDate(null);
-      }
-      else {
-        axios.defaults.headers = {
-          'Authorization': 'Bearer ' + token
-        };
-        setTokenChecked(true)
-        successMessage('Successfully authenticated in Spotify!');
-      }
+    if (!expirationDate) {
+      return
     }
 
-    axios.interceptors.response.use(response => response, error => {
-      if (error.response.status === 401 || error.response.status === 403) {
-        setToken(null)
-        setExpirationDate(null)
-        errorMessage('Authentication expired, please relogin and try again');
-      }
-      return Promise.reject(error);
-    })
-
-    // Handle auth and callback
-    if (window.location.pathname === '/callback') {
-      if (window.location.hash) { // success
-        const parsedHash = queryString.parse(window.location.hash);
-
-        const responseToken = parsedHash['access_token'];
-        if (responseToken) {
-          setToken(responseToken);
-
-          const expirationDate = new Date(new Date().getTime() + Number.parseInt(parsedHash.expires_in) * 1000);
-          setExpirationDate(expirationDate);
-
-          window.location.href = '/';
-        } else {
-          throw new Error(`Access token is not provided in '/authorize' response`);
-        }
-      }
-      else {
-        errorMessage('Authentication in Spotify failed, please try again');
-      }
-    }
-    else {
-      checkSavedToken();
-    }
-  }, [])
-
-  const loginHandler = () => {
-    if (token) {
-      return;
+    if (expirationDate < new Date()) {
+      setToken(null);
+      setExpirationDate(null);
+      return
     }
 
-    const loginParams = {
-      'client_id': process.env.REACT_APP_API_CLIENT_KEY,
-      'response_type': 'token',
-      'redirect_uri': `${process.env.REACT_APP_SPOTIFY_URL}/callback`,
-      'scope': 'user-library-read playlist-modify-public playlist-read-private playlist-read-collaborative',
-    };
+    axios.defaults.headers['Authorization'] = `Bearer ${token}`;
 
-    let query = '';
+    setTokenChecked(true)
+    successMessage('Successfully authenticated in Spotify!');
+  }, [expirationDate])
 
-    for (let key in loginParams) {
-      query += `${key}=${loginParams[key]}&`;
-    };
+  useEffect(() => {
+    if (!location.hash) {
+      return
+    }
 
-    window.location.href = 'https://accounts.spotify.com/authorize?' + query;
-  };
+    const parsedHash = queryString.parse(location.hash);
+    const responseToken = parsedHash['access_token'];
 
-  return {
-    isAuth: tokenChecked && token,
-    login: loginHandler
-  }
+    if (!responseToken) {
+      throw new Error(`Access token is not provided in '/authorize' response`);
+    }
 
+    const expirationDate = calcExpirationDate(parsedHash.expires_in);
+
+    setToken(responseToken);
+    setExpirationDate(expirationDate);
+
+    navigate("/")
+  }, [location.hash])
 }
 
 export { useAuth }
