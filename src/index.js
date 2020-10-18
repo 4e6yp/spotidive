@@ -5,13 +5,19 @@ import App from './App';
 import * as serviceWorker from './serviceWorker';
 import { ThemeProvider, CssBaseline } from '@material-ui/core';
 import theme from './theme';
+import { AlertProvider } from './context/Alert';
+import { AuthProvider } from './context/Auth';
 
 ReactDOM.render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
-        <App />
+        <AlertProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </AlertProvider>
       </BrowserRouter>
     </ThemeProvider>
   </React.StrictMode>,

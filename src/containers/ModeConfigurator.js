@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback, useContext } from 'react';
-import {useAlertMessage} from "../hooks/";
+import { AlertContext } from "../context/Alert";
+import { AuthContext } from '../context/Auth';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types';
 import Loader from './Loader';
 import { MenuItem, FormControl, Select, TextField, Typography, Stepper, Step, StepLabel, StepContent, makeStyles, Tooltip } from '@material-ui/core';
 import ConfigSlider from './ConfigSlider';
 import processSteps from '../utility/processSteps';
-import { AuthContext } from '../App'
 
 const useStyles = makeStyles({
   Header: {
@@ -33,7 +33,7 @@ const ModeConfigurator = ({ mode, handleIsLoadingChanged }) => {
   const classes = useStyles();
 
   const authContext = useContext(AuthContext)
-  const {hideMessage} = useAlertMessage()
+  const {hideMessage} = useContext(AlertContext)
 
   const [playlists, setPlaylists] = useState([]);
 
