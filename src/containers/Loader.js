@@ -4,51 +4,12 @@ import { AuthContext } from '../context/Auth';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types';
 import axios from '../axios-spotifyClient';
-import axiosRetry, { isNetworkOrIdempotentRequestError } from 'axios-retry';
 import { Typography, Box, Button, makeStyles, LinearProgress, Dialog, Zoom, DialogActions } from '@material-ui/core';
 import CreatedPlaylistPaper from '../components/CreatedPlaylistPaper';
 import processSteps from '../utility/processSteps';
 import { allSettledRequests, synchFetchMultiplePages } from '../utility/Loader';
 import { spotifyDataActions, spotifyDataReducer } from '../reducers/SpotifyReducer';
 import { progressBarActions, progressBarReducer } from '../reducers/ProgressBarReducer';
-
-axiosRetry(axios, {
-  retries: 5,
-  retryCondition: e => {
-    return isNetworkOrIdempotentRequestError(e) || `${e.response.status}`[0] === "5" || e.response.status === 429
-  },
-  retryDelay: (_, error) => {
-    if (error.response.status === 429) {
-      const retryAfter = parseInt(error.response.headers['retry-after']);
-      return retryAfter ? (retryAfter * 1000) + 500 : 3000
-    }
-    return 3000;
-  }
-})
-
-const wait = async (ms) => {
-  return new Promise(resolve => {
-    setTimeout(resolve, ms);
-  })
-}
-
-let requestsCounter = 0;
-const requestsLimit = 50;
-let cooldown = 4000;
-
-// Split requests into packs with delays in-between (due to api limitations)
-axios.interceptors.request.use(async req => {
-  requestsCounter++;
-
-  if (requestsCounter > requestsLimit) {
-    const cooldownMultiplier = Math.floor(requestsCounter / requestsLimit);
-    await wait(cooldown * cooldownMultiplier);
-
-    // reset counter when all queued requests are finished
-    requestsCounter = requestsCounter - 1 === requestsLimit ? 0 : requestsCounter - 1;
-  }
-  return req;
-})
 
 const useStyles = makeStyles({
   root: {

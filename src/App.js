@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { AlertContext } from "./context/Alert";
-import { useAuth } from './hooks';
+import { useAxiosSetup, useAuth } from './hooks';
 import ModeSwitcher from './containers/ModeSwitcher/ModeSwitcher';
 import { Container, Box, Typography } from '@material-ui/core';
 import Snackbar from '@material-ui/core/Snackbar';
@@ -12,6 +12,7 @@ const Alert = React.forwardRef(function Alert(props, ref) {
 });
 
 const App = () => {
+  useAxiosSetup()
   useAuth()
 
   const {message, handleMessageClosed} = useContext(AlertContext)

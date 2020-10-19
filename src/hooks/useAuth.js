@@ -1,20 +1,15 @@
 import { useContext, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import queryString from 'query-string';
-import { useInterceptors } from '../hooks';
 import { AlertContext } from '../context/Alert';
 import { AuthContext } from '../context/Auth';
 import { calcExpirationDate } from '../utility/login';
-import axios from '../axios-spotifyClient';
 
 function useAuth() {
-  useInterceptors()
-
   const location = useLocation()
-  const navigate = useNavigate()
 
-  const { successMessage } = useContext(AlertContext)
-  const { token, setToken, setTokenChecked, expirationDate, setExpirationDate } = useContext(AuthContext)
+  const { errorMessage, successMessage } = useContext(AlertContext)
+  const { setToken, expirationDate, setExpirationDate } = useContext(AuthContext)
 
   useEffect(() => {
     if (!expirationDate) {
@@ -24,12 +19,10 @@ function useAuth() {
     if (expirationDate < new Date()) {
       setToken(null);
       setExpirationDate(null);
+      errorMessage("Access token has expired")
       return
     }
 
-    axios.defaults.headers['Authorization'] = `Bearer ${token}`;
-
-    setTokenChecked(true)
     successMessage('Successfully authenticated in Spotify!');
   }, [expirationDate])
 
@@ -49,8 +42,6 @@ function useAuth() {
 
     setToken(responseToken);
     setExpirationDate(expirationDate);
-
-    navigate("/")
   }, [location.hash])
 }
 

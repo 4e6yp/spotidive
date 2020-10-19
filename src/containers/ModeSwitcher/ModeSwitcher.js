@@ -14,6 +14,10 @@ const ModeSwitcher = () => {
   const [isLoaderBusy, setLoaderBusy] = useState(false);
 
   useEffect(() => {
+    navigate(pathMap[viewedMode], {replace: true})
+  }, [])
+
+  useEffect(() => {
     const {pathname} = location
 
     if (pathname === pathMap[DIVE_DEEPER]) {

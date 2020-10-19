@@ -1,4 +1,4 @@
-import React, { useState, createContext } from "react";
+import React, { createContext } from "react";
 import { useLocalStorage } from "../hooks";
 import { login } from '../utility/login';
 
@@ -8,15 +8,11 @@ function AuthProvider({ children }) {
     const [token, setToken] = useLocalStorage("token", null);
     const [expirationDate, setExpirationDate] = useLocalStorage("expiration_date", null);
 
-    const [tokenChecked, setTokenChecked] = useState(false);
-
     const contextValue = {
-        isAuth: token && tokenChecked,
+        isAuth: !!token,
         token,
         setToken,
         expirationDate,
-        tokenChecked,
-        setTokenChecked,
         setExpirationDate,
         login
     }
