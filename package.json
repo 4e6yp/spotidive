@@ -29,15 +29,7 @@
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
-    "extends": "react-app",
-    "overrides": [
-      {
-        "files": ["**/*.js?(x)"],
-        "rules": {
-          "react-hooks/exhaustive-deps": "off"
-        }
-      }
-    ]
+    "extends": "react-app"
   },
   "browserslist": {
     "production": [

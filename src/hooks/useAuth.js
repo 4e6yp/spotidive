@@ -16,10 +16,10 @@ function useAuth() {
       return
     }
 
-    if (expirationDate < new Date()) {
+    if (new Date(expirationDate) < new Date()) {
       setToken(null);
       setExpirationDate(null);
-      errorMessage("Access token has expired")
+      errorMessage("Authentication expired, please relogin and try again")
       return
     }
 
@@ -27,7 +27,12 @@ function useAuth() {
   }, [expirationDate])
 
   useEffect(() => {
+    if (location.pathname !== '/callback') {
+      return
+    }
+
     if (!location.hash) {
+      errorMessage('Authentication in Spotify failed, please try again')
       return
     }
 

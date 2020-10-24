@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { useLocalStorage} from "../../hooks"
 import { Typography } from '@material-ui/core';
 import {modes, pathMap, DIVE_DEEPER, LOOK_CLOSER} from '../../utility/modeTypes';
@@ -8,29 +8,17 @@ import ModeConfigurator from '../ModeConfigurator';
 
 const ModeSwitcher = () => {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [viewedMode, setViewedMode] = useLocalStorage("current_mode", LOOK_CLOSER);
   const [isLoaderBusy, setLoaderBusy] = useState(false);
 
   useEffect(() => {
     navigate(pathMap[viewedMode], {replace: true})
-  }, [])
-
-  useEffect(() => {
-    const {pathname} = location
-
-    if (pathname === pathMap[DIVE_DEEPER]) {
-      setViewedMode(DIVE_DEEPER)
-    } else if (pathname === pathMap[LOOK_CLOSER]) {
-      setViewedMode(LOOK_CLOSER)
-    }
-
-  }, [location, setViewedMode])
+  }, [viewedMode, navigate])
 
   const getModeInfo = (mode) => {
     const result = {
-      action: () => navigate(pathMap[mode]),
+      action: () => setViewedMode(mode),
       title: '',
       desc: ''
     }
