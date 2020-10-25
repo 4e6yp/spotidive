@@ -14,6 +14,20 @@ let requestsCounter = 0;
 const requestsLimit = 50;
 const cooldown = 4000;
 
+// Split requests into packs with delays in-between (due to api limitations)
+axios.interceptors.request.use(async req => {
+    requestsCounter++;
+
+    if (requestsCounter > requestsLimit) {
+        const cooldownMultiplier = Math.floor(requestsCounter / requestsLimit);
+        await wait(cooldown * cooldownMultiplier);
+
+        // reset counter when all queued requests are finished
+        requestsCounter = requestsCounter - 1 === requestsLimit ? 0 : requestsCounter - 1;
+    }
+    return req;
+})
+
 function useAxiosSetup() {
     const { token, setToken, setExpirationDate } = useContext(AuthContext);
     const { errorMessage } = useContext(AlertContext);
@@ -43,20 +57,6 @@ function useAxiosSetup() {
             errorMessage('Authentication expired, please relogin and try again');
         }
         return Promise.reject(error);
-    })
-
-    // Split requests into packs with delays in-between (due to api limitations)
-    axios.interceptors.request.use(async req => {
-        requestsCounter++;
-
-        if (requestsCounter > requestsLimit) {
-            const cooldownMultiplier = Math.floor(requestsCounter / requestsLimit);
-            await wait(cooldown * cooldownMultiplier);
-
-            // reset counter when all queued requests are finished
-            requestsCounter = requestsCounter - 1 === requestsLimit ? 0 : requestsCounter - 1;
-        }
-        return req;
     })
 }
 
