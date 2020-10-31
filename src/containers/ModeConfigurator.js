@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useContext } from 'react';
+import { AlertContext } from "../context/Alert";
+import { AuthContext } from '../context/Auth';
 import * as modeTypes from '../utility/modeTypes';
 import PropTypes from 'prop-types';
 import Loader from './Loader';
@@ -27,10 +29,12 @@ const useStyles = makeStyles({
   }
 })
 
-const ModeConfigurator = (props) => {
+const ModeConfigurator = ({ mode, handleIsLoadingChanged }) => {
   const classes = useStyles();
 
-  const { hideError, mode, handleIsLoadingChanged, isAuth } = props;
+  const authContext = useContext(AuthContext)
+  const {hideMessage} = useContext(AlertContext)
+
   const [playlists, setPlaylists] = useState([]);
 
   const [modeConfig, setModeConfig] = useState({
@@ -99,7 +103,7 @@ const ModeConfigurator = (props) => {
         [type]: value
       })
     );
-    hideError();
+    hideMessage();
   }
 
   const handleStepsRecalculated = (newCount) => {
@@ -113,7 +117,7 @@ const ModeConfigurator = (props) => {
   const wrapDisabledInputWithTooltip = useCallback((component) => {
     let newComponent = component;
 
-    if (!isAuth) {
+    if (!authContext.isAuth) {
       newComponent = <Tooltip title="You need to login in order to change values">
         <span>
           {component}
@@ -122,7 +126,7 @@ const ModeConfigurator = (props) => {
     }
 
     return newComponent;
-  }, [isAuth])
+  }, [authContext.isAuth])
 
   const getStepContent = (step) => {
     switch (step) {
@@ -140,7 +144,7 @@ const ModeConfigurator = (props) => {
               onChange={(event) => configValueChangedHandler('selectedPlaylist', event.target.value)}
               MenuProps={{ classes: {paper: classes.menuPaper} }}
               classes={{select: classes.SelectorLabel}}
-              disabled={!isAuth}
+              disabled={!authContext.isAuth}
             >
               <MenuItem value={0}>Library</MenuItem>
               { playlistItems }
@@ -157,7 +161,7 @@ const ModeConfigurator = (props) => {
           action={(value) => configValueChangedHandler('artistTracksThreshold', value)}
           value={modeConfig.artistTracksThreshold}
           maxValue={15}
-          disabled={!isAuth}
+          disabled={!authContext.isAuth}
         />
 
         return <Typography component={'div'}>
@@ -169,7 +173,7 @@ const ModeConfigurator = (props) => {
           action={(value) => configValueChangedHandler('relatedArtistsQuantity', value)}
           value={modeConfig.relatedArtistsQuantity}
           maxValue={20}
-          disabled={!isAuth}
+          disabled={!authContext.isAuth}
         />
 
         return <Typography component={'div'}>
@@ -182,7 +186,7 @@ const ModeConfigurator = (props) => {
           action={(value) => configValueChangedHandler('targetQuantityPerArtist', value)}
           value={modeConfig.targetQuantityPerArtist}
           maxValue={10}
-          disabled={!isAuth}
+          disabled={!authContext.isAuth}
         />
 
         return <Typography component={'div'}>
@@ -193,7 +197,7 @@ const ModeConfigurator = (props) => {
         const playlistNameParam = <TextField className={classes.Textfield}
           value={modeConfig.newPlaylistName}
           onChange={(event) => configValueChangedHandler("newPlaylistName", event.target.value)}
-          disabled={!isAuth}
+          disabled={!authContext.isAuth}
           inputProps={{ spellCheck: 'false' }}
         />
         return <Typography component={'div'}>
@@ -240,13 +244,10 @@ const ModeConfigurator = (props) => {
       <Loader
         configData={modeConfig}
         setPlaylists={setPlaylists}
-        showError={props.showError}
         setRecalculatedTracks={handleStepsRecalculated}
-        isAuth={props.isAuth}
         reenableConfigurator={handleProcessCompleted}
         disableConfigurator={handleProcessStarted}
         setStepCompleted={(step) => setStepCompleted(step)}
-        login={props.login}
         isSubmitEnabled={isSubmitEnabled}
       />
     </>
@@ -255,10 +256,6 @@ const ModeConfigurator = (props) => {
 
 ModeConfigurator.propTypes = {
   mode: PropTypes.oneOf(Object.values(modeTypes)).isRequired,
-  showError: PropTypes.func.isRequired,
-  hideError: PropTypes.func.isRequired,
-  isAuth: PropTypes.bool.isRequired,
-  login: PropTypes.func.isRequired,
   handleIsLoadingChanged: PropTypes.func.isRequired
 }
 
