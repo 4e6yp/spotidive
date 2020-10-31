@@ -485,7 +485,7 @@ const Loader = (props) => {
       .catch((error) => {
         errorMessage(error)
       })
-  }, [isAuth])
+  }, [isAuth, errorMessage])
 
   // Get all user playlists
   useEffect(() => {
@@ -502,7 +502,7 @@ const Loader = (props) => {
     .catch((error) => {
       errorMessage(error);
     })
-  }, [setPlaylists, isAuth])
+  }, [setPlaylists, isAuth, errorMessage])
 
   // Get all tracks from the library
   useEffect(() => {
@@ -522,7 +522,7 @@ const Loader = (props) => {
       .catch((error) => {
         errorMessage(error);
       })
-  }, [fetchPlaylistTracks, isAuth, spotifyData.fetch.finished])
+  }, [fetchPlaylistTracks, isAuth, spotifyData.fetch.finished, errorMessage])
 
   // Start process if it was initiated while fetching library
   useEffect(() => {
@@ -536,7 +536,7 @@ const Loader = (props) => {
           errorMessage(error);
         })
     }
-  }, [spotifyData.fetch, executeProcess, reenableConfigurator, handleProcessFinished])
+  }, [spotifyData.fetch, executeProcess, reenableConfigurator, handleProcessFinished, errorMessage])
 
   // Recalculate tracks count with each config change
   useEffect(() => {

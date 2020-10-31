@@ -24,7 +24,7 @@ function useAuth() {
     }
 
     successMessage('Successfully authenticated in Spotify!');
-  }, [expirationDate])
+  }, [expirationDate, setExpirationDate, errorMessage, setToken, successMessage])
 
   useEffect(() => {
     if (location.pathname !== '/callback') {
@@ -47,7 +47,7 @@ function useAuth() {
 
     setToken(responseToken);
     setExpirationDate(expirationDate);
-  }, [location.hash])
+  }, [location, errorMessage, setExpirationDate, setToken])
 }
 
 export { useAuth }
